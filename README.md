@@ -19,7 +19,7 @@ Im folgenden dazu unser "Brain Storming":
   - es reagiert auf Befehle von Symcon (z.B. x Sekunden AUF/ x Sekunden AB ......)
 - evtl. noch Rolltor Positionssensoren verwenden?
 
-Nutzung:
-RFID Chip wird an Lesegerät gehalten und von Arduino empfangen - Arduino sendet die UID an Symcon zur Prüfung
+# Nutzung
+RFID Chip wird an Lesegerät gehalten und die UID von Arduino empfangen - Arduino sendet die dekodierte UID an Symcon zur Prüfung
 Wenn die UID freigeschaltet ist, sendet Symcon einen 'x Sekunden AUF' Befehl - ist die UID nicht freigeschaltet, verwirft Symcon den Request
 Bei Betätigung des LED-Tasters wird dieses an Symcon gesendet und Symcon antwortet mit einen 'x Sekunden AB' Befehl
