@@ -12,5 +12,14 @@ Dieser Vorschlag wurde vom Vorstand als gut befunden und soll in naher Zukunft f
 Im folgenden dazu unser "Brain Storming":
 
 - XBee ZBee Funkreichweite wurde geprüft und ist ausreichend!
-- Aussen RFID-Leser mit Display und Abmeldetaste (I2C Bus für Display und RFID-Reader, Spannungsversorgung und Tasterkontakte und LED?)
-- Innen Arduino, Netzteil, XBee ZBee Modul und Relaisplatine
+- Aussen RFID-Leser und Abmeldetaste (I2C Bus für RFID-Reader, Spannungsversorgung und Tasterkontakte und LED?) - benötigen wir ein Display?
+- Innen Arduino, Netzteil, XBee ZBee Modul und Relaisplatine (für Rolltorsteuerung)
+- Das Steuerprogramm (Arduino) wird 'dumm' gehalten 
+  - es sendet die gelesene UID und Tasterkontakte an Symcon zur Prüfung ob 
+  - es reagiert auf Befehle von Symcon (z.B. x Sekunden AUF/ x Sekunden AB ......)
+- evtl. noch Rolltor Positionssensoren verwenden?
+
+Nutzung:
+RFID Chip wird an Lesegerät gehalten und von Arduino empfangen - Arduino sendet die UID an Symcon zur Prüfung
+Wenn die UID freigeschaltet ist, sendet Symcon einen 'x Sekunden AUF' Befehl - ist die UID nicht freigeschaltet, verwirft Symcon den Request
+Bei Betätigung des LED-Tasters wird dieses an Symcon gesendet und Symcon antwortet mit einen 'x Sekunden AB' Befehl
