@@ -16,7 +16,7 @@ Im folgenden dazu unser "Brain Storming":
 - benötigen wir ein Display?
 - Innen Arduino, Netzteil, XBee ZBee Modul und Relaisplatine (für Rolltorsteuerung)
 - Das Steuerprogramm (Arduino) wird 'dumm' gehalten 
-  - es sendet die gelesene UID und Tasterkontakte an Symcon zur Prüfung ob 
+  - es sendet die gelesene UID <del>und Tasterkontakte</del> an Symcon zur Prüfung ob vorhanden und freigegeben
   - es reagiert auf Befehle von Symcon (z.B. x Sekunden AUF/ x Sekunden AB ......)
 - evtl. noch Rolltor Positionssensoren verwenden?
 
