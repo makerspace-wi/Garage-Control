@@ -12,7 +12,7 @@ Dieser Vorschlag wurde vom Vorstand als gut befunden und soll in naher Zukunft f
 Im folgenden dazu unser "Brain Storming":
 
 - XBee ZBee Funkreichweite wurde geprüft und ist ausreichend!
-- Aussen RFID-Leser und Abmeldetaste (I2C Bus für RFID-Reader, Spannungsversorgung und Tasterkontakte und LED?) - benötigen wir ein Display?
+- Aussen RFID-Leser <del>und Abmeldetaste</del> (I2C Bus für RFID-Reader, Spannungsversorgung und Tasterkontakte und LED?) - benötigen wir ein Display?
 - Innen Arduino, Netzteil, XBee ZBee Modul und Relaisplatine (für Rolltorsteuerung)
 - Das Steuerprogramm (Arduino) wird 'dumm' gehalten 
   - es sendet die gelesene UID und Tasterkontakte an Symcon zur Prüfung ob 
