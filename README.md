@@ -22,5 +22,5 @@ Im folgenden dazu unser "Brain Storming":
 
 # Nutzung
 RFID Chip wird an Lesegerät gehalten und die UID von Arduino empfangen - Arduino sendet die dekodierte UID an Symcon zur Prüfung
-Wenn die UID freigeschaltet ist, sendet Symcon einen 'x Sekunden AUF' Befehl - ist die UID nicht freigeschaltet, verwirft Symcon den Request
+Wenn die UID freigeschaltet ist, sendet Symcon einen 'x Sekunden AUF' Befehl - ist die UID nicht freigeschaltet, verwirft Symcon den Request.<br>
 Wird der RFID-Chip nochmals an das Lesegerät gehalten, reagiert Symcon mit einen 'x Sekunden AB' Befehl
