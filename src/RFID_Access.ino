@@ -43,6 +43,9 @@
 #define SS_PIN      10  // [not used]
 
 // Garage Control (ext)
+#define SW_opened    2  // position switch opened
+#define SW_closed    5  // position switch closed
+
 #define currMotor   A0  // [not used]
 #define REL_open    A2  // Relais Garage open
 #define REL_close   A3  // Relais Garage close
@@ -161,7 +164,10 @@ void setup()
   pinMode(REL_open, OUTPUT);
   pinMode(REL_close, OUTPUT);
 
-  // Set default values
+  pinMode(SW_opened, INPUT_PULLUP);
+  pinMode(SW_closed, INPUT_PULLUP);
+
+  // Set default values 
   digitalWrite(BUSError, HIGH); // turn the LED ON (init start)
   digitalWrite(REL_open, LOW);
   digitalWrite(REL_close, LOW);
@@ -219,7 +225,7 @@ void setup()
 // TASK (Functions) ----------------------------
 void checkXbee()
 {
-  if (IDENT.startsWith("GARA") && plplpl == 2)
+  if (IDENT.startsWith("MA") && plplpl == 2)  // GARA
   {
     ++plplpl;
     tB.setCallback(retryPOR);
@@ -391,7 +397,7 @@ void checkRFID()
 }
 
 void UnLoCallback() {   // 500ms Tick
-  if (timer > 0)
+  if (timer > 0 && digitalRead(SW_opened) && digitalRead(SW_closed))
   {
     toggle = !toggle;
     if (toggle)
@@ -414,14 +420,34 @@ void UnLoCallback() {   // 500ms Tick
     if (toggleGarage)
     {
       digitalWrite(REL_open, LOW);
-      lcd.setCursor(0, 3); lcd.print("Garage opened");
-      Serial.println(String(IDENT) + ";opened");
+      if (timer > 0 && !digitalRead(SW_opened))
+      {
+        lcd.setCursor(0, 2); lcd.print("Action finished     ");
+        lcd.setCursor(0, 3); lcd.print("Garage opened");
+        Serial.println(String(IDENT) + ";opened");
+      }
+      else
+      {
+        lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
+        lcd.setCursor(0, 3); lcd.print("Garage opened?");
+        Serial.println(String(IDENT) + ";opened?");
+      }
     }
     else
     {
       digitalWrite(REL_close, LOW);
-      lcd.setCursor(0, 3); lcd.print("Garage closed");
-      Serial.println(String(IDENT) + ";closed");
+      if (timer > 0 && !digitalRead(SW_closed))
+      {
+        lcd.setCursor(0, 2); lcd.print("Action finished     ");
+        lcd.setCursor(0, 3); lcd.print("Garage closed");
+        Serial.println(String(IDENT) + ";closed");
+      }
+      else
+      {
+        lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
+        lcd.setCursor(0, 3); lcd.print("Garage closed?");
+        Serial.println(String(IDENT) + ";closeed?");
+      }
     }
     tU.disable();
     tM.enable();
@@ -637,7 +663,7 @@ void evalSerialData()
     }
   }
 
-  if (inStr.startsWith("GARA") && inStr.length() == 4)
+  if (inStr.startsWith("MA") && inStr.length() == 4) // GARA
   {
     Serial.println("ATCN");
     IDENT = inStr;
