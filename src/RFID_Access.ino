@@ -8,10 +8,9 @@
   Commands to Raspi --->
   GeName  - from xBee (=Ident) [max 4 caracter including numbers]
   'POR'   - garage power on reset (Ident;por)
-  'Ident;closed'   - garage reporting CLOSED-Status
-  'Ident;opened'   - garage reporting OPENED-Status
-  'Ident;emstop'   - NOT STOP pressed
-  'card;nn...' - uid_2 from reader 
+  'Ident;status;n'   - garage reporting Door-Status - i.e. 3 = moving, 1 = open, 2 = closed, 0 = hardware error
+  'Ident;emstop'     - NOT-STOP pressed
+  'card;nn...'       - uid_2 from reader 
 
   Commands from Raspi
   'time'   - format time33.33.3333 33:33:33
@@ -19,7 +18,7 @@
   'close'  - Garage CLOSE
   'stop'   - stop door movement
   'noreg'  - RFID-Chip not registed
-  'rstatus'  - request sensor status - i.e. 3 = moving, 1 = open, 2 = closed, 0 = hardware error
+  'rstatus'  - request sensor status
   'setmo'  - set time for moving door
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
