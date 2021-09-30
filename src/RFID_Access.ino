@@ -447,7 +447,7 @@ void UnLoCallback() {   // 500ms Tick
       {
         lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
         lcd.setCursor(0, 3); lcd.print("Garage closed?");
-        Serial.println(String(IDENT) + ";closeed?");
+        Serial.println(String(IDENT) + ";closed?");
       }
     }
     tU.disable();
