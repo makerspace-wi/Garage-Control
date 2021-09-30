@@ -6,7 +6,7 @@
   switch on claener by current control and separate cleaner on
 
   Commands to Raspi --->
-  'GARA'  - from xBee (=Ident)
+  GeName  - from xBee (=Ident) [max 4 caracter including numbers]
   'POR'   - garage power on reset (Ident;por)
 
   'Ident;on'   - garage reporting ON-Status
@@ -28,6 +28,7 @@
   changed: alpha version for garage control with RFID-Tags
 */
 #define Version "0.9.x" // (Test = 0.9.x ==> 1.0.0)
+#define GeName "GADO"	// Gerätename für xBee
 
 #include <Arduino.h>
 #include <TaskScheduler.h>
@@ -225,7 +226,7 @@ void setup()
 // TASK (Functions) ----------------------------
 void checkXbee()
 {
-  if (IDENT.startsWith("MA") && plplpl == 2)  // GARA
+  if (IDENT.startsWith(GeName) && plplpl == 2)  // GARA
   {
     ++plplpl;
     tB.setCallback(retryPOR);
@@ -663,7 +664,7 @@ void evalSerialData()
     }
   }
 
-  if (inStr.startsWith("MA") && inStr.length() == 4) // GARA
+  if (inStr.startsWith(GeName) && inStr.length() == 4) // GARA
   {
     Serial.println("ATCN");
     IDENT = inStr;
