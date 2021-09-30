@@ -17,6 +17,7 @@
   'time'   - format time33.33.3333 33:33:33
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
+  'stop'   - stop door movement
   'noreg'  - RFID-Chip not registed
 
   'setmo'  - set time for moving door
