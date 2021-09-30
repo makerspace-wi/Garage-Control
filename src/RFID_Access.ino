@@ -19,7 +19,7 @@
   'close'  - Garage CLOSE
   'stop'   - stop door movement
   'noreg'  - RFID-Chip not registed
-
+  'rstatus'  - request sensor status - i.e. 3 = moving, 1 = open, 2 = closed, 0 = hardware error
   'setmo'  - set time for moving door
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
