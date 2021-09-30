@@ -9,8 +9,8 @@
   GeName  - from xBee (=Ident) [max 4 caracter including numbers]
   'POR'   - garage power on reset (Ident;por)
 
-  'Ident;on'   - garage reporting ON-Status
-  'Ident;off'  - garage reporting OFF-Status
+  'Ident;closed'   - garage reporting CLOSED-Status
+  'Ident;opened'   - garage reporting OPENED-Status
   'card;nn...' - uid_2 from reader 
 
   Commands from Raspi
