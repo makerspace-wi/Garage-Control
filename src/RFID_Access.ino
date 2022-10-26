@@ -35,7 +35,7 @@
   changed: early version for garage control with RFID-Tags
 */
 #define Version "1.0.x" // (Test = 1.0.x ==> 1.0.1)
-#define xBeeName "GADO"	// Gerätename für xBee
+#define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 
 // ---------------------
