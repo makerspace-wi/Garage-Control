@@ -5,19 +5,26 @@
   switch on claener by current control and separate cleaner on
 
   Commands to Raspi --->
-  GeName  - from xBee (=Ident) [max 4 caracter including numbers]
-  'POR'   - garage power on reset (Ident;por)
-  'Ident;status;n'   - garage reporting Door-Status - i.e. 3 = moving, 1 = open, 2 = closed, 0 = hardware error
-  'Ident;emstop'     - NOT-STOP pressed
-  'card;nn...'       - uid_2 from reader 
+  xBeeName - from xBee (=Ident) [max 4 caracter including numbers]
+  'POR'    - power on reset (Ident;por)
+  'card;nn...'    - uid_2 from reader 
+  
+  'Status:'
+  'Ident;stat;n'  - garage reporting Door-Status - 00, 01, 10, 11
+  'Ident;opened'  - garage door opened-Status
+  'Ident;closed'  - garage door closed-Status
+  'Ident;openbr'  - garage motion open broken by user 
+  'Ident;closebr' - garage motion close broken by user
+  'Ident;open??'  - garage motion open undefined
+  'Ident;close??' - garage motion close undefined
 
   Commands from Raspi
   'time'   - format time33.33.3333 33:33:33
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
-  'stop'   - stop door movement
+  'rsstat' - request switch status
   'noreg'  - RFID-Chip not registed
-  'rstatus'  - request sensor status
+
   'setmo'  - set time for moving door
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
