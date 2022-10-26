@@ -18,7 +18,7 @@ Im folgenden dazu unser "Brain Storming":
 - Das Steuerprogramm (Arduino) wird 'dumm' gehalten 
   - es sendet die gelesene UID und Tasterkontakte an Symcon zur Prüfung ob vorhanden und freigegeben
   - es reagiert auf Befehle von Symcon (z.B. x Sekunden AUF/ x Sekunden AB ......)
-- es werden Rolltor Positionssensoren installiert und verwendet?
+- es werden Rolltor Positionssensoren verwendet
 
 # Nutzung
 RFID Chip wird an Lesegerät gehalten und die UID von Arduino empfangen - Arduino sendet die dekodierte UID an Symcon zur Prüfung
