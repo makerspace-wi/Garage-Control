@@ -341,6 +341,7 @@ void CheckEvent()
         togGarage = !togGarage;
         lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
         Serial.println(String(IDENT) + ";openbr");
+        digitalWrite(REL_open, LOW);
       }
       else
       {
@@ -373,6 +374,7 @@ void CheckEvent()
         togGarage = !togGarage;
         lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
         Serial.println(String(IDENT) + ";closebr");
+        digitalWrite(REL_open, LOW);
       }
       else
       {
