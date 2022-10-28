@@ -31,7 +31,7 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 26.10.2022 by Michael Muehl
+  last change: 28.10.2022 by Michael Muehl
   changed: early version for garage control with RFID-Tags
 */
 #define Version "1.0.x" // (Test = 1.0.x ==> 1.0.1)
@@ -290,7 +290,23 @@ void checkRFID()
 void CheckEvent()
 {
   uint8_t buttons = lcd.readButtons();
-  if (timer > 0 && digitalRead(SW_open) && digitalRead(SW_close) && (buttons & BUTTON_P2) ==0)
+  if ((buttons & BUTTON_P2) ==2)
+  {
+        digitalWrite(REL_open, HIGH);
+        but_led(2);
+        lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
+        if (togGarage)
+        {
+          Serial.println(String(IDENT) + ";openbr");
+        }
+        else
+        {
+          Serial.println(String(IDENT) + ";closebr");
+        }
+        togGarage = !togGarage;
+
+  }
+  else if (timer > 0 && digitalRead(SW_open) && digitalRead(SW_close))
   {
     timer -= 1;
     if (timer % checkFA == 0)
@@ -306,7 +322,6 @@ void CheckEvent()
     tMV.setCallback(MoveERROR);
     if (togGarage)  // garage opened =1 or closed =0
     {
-      digitalWrite(REL_open, HIGH);
       if (timer > 0 && !digitalRead(SW_open))
       {
         lcd.setCursor(0, 2); lcd.print("Action finished     ");
@@ -314,20 +329,12 @@ void CheckEvent()
         Serial.println(String(IDENT) + ";opened");
       }
       else if (timer == 0 && !digitalRead(SW_open))
-      {
+      { // fertig open
+        digitalWrite(REL_open, HIGH);
         but_led(1);
         flash_led(1);
         tMV.disable();
         tM.enable();
-        // fertig open
-      }
-      else if ((buttons & BUTTON_P2) == 2)
-      {
-        but_led(2);
-        togGarage = !togGarage;
-        lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-        Serial.println(String(IDENT) + ";openbr");
-        digitalWrite(REL_open, LOW);
       }
       else
       {
@@ -339,7 +346,6 @@ void CheckEvent()
     }
     else
     {
-      digitalWrite(REL_close, HIGH);
       if (timer > 0 && !digitalRead(SW_close))
       {
         lcd.setCursor(0, 2); lcd.print("Action finished     ");
@@ -347,20 +353,12 @@ void CheckEvent()
         Serial.println(String(IDENT) + ";closed");
       }
       else if (timer == 0 && !digitalRead(SW_close))
-      {
+      { // Fertig closed
+        digitalWrite(REL_close, HIGH);
         but_led(1);
         flash_led(1);
         tMV.disable();
         tM.enable();
-        // Fertig closed
-      }
-      else if ((buttons & BUTTON_P2) == 2)
-      {
-        but_led(2);
-        togGarage = !togGarage;
-        lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-        Serial.println(String(IDENT) + ";closebr");
-        digitalWrite(REL_close, LOW);
       }
       else
       {
