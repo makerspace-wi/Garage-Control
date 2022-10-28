@@ -266,25 +266,11 @@ void retryPOR() {
     tB.disable();
     displayON();
   }
-
-  // Only for Test!!! ---> ------------
-  if (getTime == 8)
-  {
-    inStr = "time33.33.3333 33:33:33 ";
-    evalSerialData();
-    // inStr = "NG9";
-    // evalSerialData();
-    // R3TMaschine gesperrt!!!
-    // R4TMaschine gesperrt!!!!
-    inStr = "";
-  }
-  // <--- Test ------------------------
 }
 
 void checkRFID()
 {   // 500ms Tick
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-
   if (success)
   {
     flash_led(4);
