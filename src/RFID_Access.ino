@@ -31,7 +31,7 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 26.10.2022 by Michael Muehl
+  last change: 28.10.2022 by Michael Muehl
   changed: early version for garage control with RFID-Tags
 */
 #define Version "1.0.x" // (Test = 1.0.x ==> 1.0.1)
