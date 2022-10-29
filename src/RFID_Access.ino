@@ -23,7 +23,7 @@
   'time'   - format time33.33.3333 33:33:33
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
-  'rsstat' - request switch status
+  'rs'     - request status
   'noreg'  - RFID-Chip not registed
 
   'setmo'  - set time for moving door
@@ -31,10 +31,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 28.10.2022 by Michael Muehl
-  changed: early version for garage control with RFID-Tags
+  last change: 29.10.2022 by Michael Muehl
+  changed: update rfid connection and change pins
 */
-#define Version "1.0.x" // (Test = 1.0.x ==> 1.0.1)
+#define Version "1.0.0" // (Test = 1.0.x ==> 1.0.1)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 
@@ -48,13 +48,15 @@
 #include <PN532.h>
 
 // PIN Assignments
-// RFID Control -------
-#define RST_PIN      5  // RFID Reset
-#define SS_PIN      10  // [not used]
+// RFID Control ---I2C-------
+#define RESET        2  // RFID Reset
+#define IRQ          3  // RFID IRQ
+// #define SDA      A4  // Relais Garage open
+// #define SCL      A5  // Relais Garage close
 
 // Garage Control (ext)
-#define SW_open      2  // position switch opened
-#define SW_close     3  // position switch closed
+#define SW_open      5  // position switch opened
+#define SW_close     7  // position switch closed
 
 #define currMotor   A0  // [not used]
 #define REL_open    A2  // Relais Garage open
@@ -116,9 +118,9 @@ void MoveERROR();
 Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);	    // 500ms main task
 Task tR(TASK_SECOND / 2, 0, &repeatMES);                // 500ms * repMES repeat messages
 Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent);  // 1000ms / checkFA ctor
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback); // 5000ms added M. Muehl
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback); // 5000ms blinking
 
-Task tBU(TASK_SECOND / 10, 6, &BuzzerOn);               // 100ms 6x =600ms added by DieterH on 22.10.2017
+Task tBU(TASK_SECOND / 10, 6, &BuzzerOn);               // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
 Task tBD(1, TASK_ONCE, &FlashCallback);                 // Flash Delay
 Task tDF(1, TASK_ONCE, &DispOFF);                       // display off
 Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR);    // 250ms for Garage move display
@@ -290,23 +292,52 @@ void checkRFID()
 void CheckEvent()
 {
   uint8_t buttons = lcd.readButtons();
-  if ((buttons & BUTTON_P2) ==2)
+  if (timer == 0 && (buttons & BUTTON_P2) ==2)
   {
-        digitalWrite(REL_open, HIGH);
-        but_led(2);
-        lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-        if (togGarage)
-        {
-          Serial.println(String(IDENT) + ";openbr");
-        }
-        else
-        {
-          Serial.println(String(IDENT) + ";closebr");
-        }
-        togGarage = !togGarage;
-
+    but_led(1);
+    tMV.setInterval(TASK_SECOND / 4);
+    tMV.setCallback(MoveERROR);
+    if ((buttons & BUTTON_P2) ==2)
+    {
+      lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
+      if (togGarage)
+      {
+        lcd.setCursor(0, 3); lcd.print("Door moved up???    ");
+        Serial.println(String(IDENT) + ";openbr");
+      }
+      else
+      {
+        lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
+        Serial.println(String(IDENT) + ";closebr");
+      }
+    }
+    else if (digitalRead(SW_open) & digitalRead(SW_close))
+    {
+      lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
+      if (togGarage)
+      {
+      lcd.setCursor(0, 3); lcd.print("Garage open??       ");
+      Serial.println(String(IDENT) + ";open??");
+      }
+      else
+      {
+        lcd.setCursor(0, 3); lcd.print("Garage closed??     ");
+        Serial.println(String(IDENT) + ";close??");
+      }
+    }
+    else
+    {
+      flash_led(1);
+      tMV.disable();
+      tM.enable();
+    }
+    digitalWrite(REL_open, HIGH);
+    digitalWrite(REL_close, HIGH);
+    togGarage = !togGarage;
+    tU.disable();
+    tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
-  else if (timer > 0 && digitalRead(SW_open) && digitalRead(SW_close))
+  else
   {
     timer -= 1;
     if (timer % checkFA == 0)
@@ -315,61 +346,20 @@ void CheckEvent()
       sprintf(tbs, "% 4d", timer / checkFA);
       lcd.setCursor(16, 2); lcd.print(tbs);
     }
-  }
-  else
-  {
-    tMV.setInterval(TASK_SECOND / 4);
-    tMV.setCallback(MoveERROR);
-    if (togGarage)  // garage opened =1 or closed =0
+    if (!digitalRead(SW_open) && !digitalRead(SW_close))
     {
-      if (timer > 0 && !digitalRead(SW_open))
+      lcd.setCursor(0, 2); lcd.print("Action finished     ");
+      if (togGarage)  // garage opened =1 or closed =0
       {
-        lcd.setCursor(0, 2); lcd.print("Action finished     ");
         lcd.setCursor(0, 3); lcd.print("Garage open    ");
         Serial.println(String(IDENT) + ";opened");
       }
-      else if (timer == 0 && !digitalRead(SW_open))
-      { // fertig open
-        digitalWrite(REL_open, HIGH);
-        but_led(1);
-        flash_led(1);
-        tMV.disable();
-        tM.enable();
-      }
       else
       {
-        but_led(1);
-        lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
-        lcd.setCursor(0, 3); lcd.print("Garage open??  ");
-        Serial.println(String(IDENT) + ";open??");
-      }
-    }
-    else
-    {
-      if (timer > 0 && !digitalRead(SW_close))
-      {
-        lcd.setCursor(0, 2); lcd.print("Action finished     ");
         lcd.setCursor(0, 3); lcd.print("Garage closed  ");
         Serial.println(String(IDENT) + ";closed");
       }
-      else if (timer == 0 && !digitalRead(SW_close))
-      { // Fertig closed
-        digitalWrite(REL_close, HIGH);
-        but_led(1);
-        flash_led(1);
-        tMV.disable();
-        tM.enable();
-      }
-      else
-      {
-        but_led(1);
-        lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
-        lcd.setCursor(0, 3); lcd.print("Garage closed??");
-        Serial.println(String(IDENT) + ";close??");
-      }
     }
-    tU.disable();
-    tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
 }
 
@@ -619,13 +609,13 @@ void evalSerialData()
     tB.setInterval(TASK_SECOND / 2);
     getTime = 255;
   }
+  else if (inStr.startsWith("RS") && inStr.length() ==2)
+  {
+    SwStatus();
+  }
   else if (inStr.startsWith("NOREG") && inStr.length() ==5)
   {
     noreg();  // changed by D. Haude on 18.10.2017
-  }
-  else if (inStr.startsWith("RSSTAT") && inStr.length() ==6)
-  {
-    SwStatus();
   }
   else if (inStr.startsWith("OPEN") && inStr.length() ==4)
   {
