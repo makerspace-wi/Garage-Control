@@ -31,7 +31,7 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 29.10.2022 by Michael Muehl
+  last change: 30.10.2022 by Michael Muehl
   changed: update rfid connection and change pins
 */
 #define Version "1.0.0" // (Test = 1.0.x ==> 1.0.1)
@@ -130,12 +130,13 @@ uint8_t success;                          // RFID
 uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
 uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
 
+bool onError = false;
+bool oneTime = false;
+bool toggle = false;
 unsigned long val;
 unsigned int timer = 0;
-bool onTime = false;
-int minutes = 0;
-bool toggle = false;
 unsigned long code;
+int minutes = 0;
 byte atqa[2];
 byte atqaLen = sizeof(atqa);
 byte intervalRFID = 0;      // 0 = off; from 1 sec to 6 sec after Displayoff
@@ -150,7 +151,7 @@ uint32_t versiondata;       // Versiondata of PN5xx
 // Variables can be set externaly: ---
 // --- on timed, time before new activation
 unsigned int MOVE = MOVEGARAGE  * checkFA; // RAM cell for before activation is off
-bool togGarage = false;  // bit toggle garage closed = false
+bool togGarage = true;   // bit toggle garage closed = false
 bool togLED = LOW;       // bit toggle LEDs on / off
 bool togMOVE = false;
 
@@ -292,26 +293,64 @@ void checkRFID()
 void CheckEvent()
 {
   uint8_t buttons = lcd.readButtons();
-  if (timer == 0 && (buttons & BUTTON_P2) ==2)
+  if (timer > 0)
   {
-    but_led(1);
-    tMV.setInterval(TASK_SECOND / 4);
-    tMV.setCallback(MoveERROR);
-    if ((buttons & BUTTON_P2) ==2)
+    timer -= 1;
+    if (timer % checkFA == 0)
     {
-      lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-      if (togGarage)
-      {
-        lcd.setCursor(0, 3); lcd.print("Door moved up???    ");
-        Serial.println(String(IDENT) + ";openbr");
-      }
-      else
-      {
-        lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
-        Serial.println(String(IDENT) + ";closebr");
-      }
+      char tbs[8];
+      sprintf(tbs, "% 4d", timer / checkFA);
+      lcd.setCursor(16, 2); lcd.print(tbs);
     }
-    else if (digitalRead(SW_open) & digitalRead(SW_close))
+    if (timer == 0)
+    {
+      digitalWrite(REL_open, HIGH);
+      digitalWrite(REL_close, HIGH);
+      // stop all
+      but_led(1);
+      flash_led(1);
+      tU.disable();
+      tMV.disable();
+    }
+    tDF.restartDelayed(TASK_SECOND * disLightOn);
+  }
+
+  if ((buttons & BUTTON_P2) ==2)
+  {
+    onError = true;
+    lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
+    if (togGarage)
+    {
+      lcd.setCursor(0, 3); lcd.print("Door moved up???    ");
+      Serial.println(String(IDENT) + ";openbr");
+    }
+    else
+    {
+      lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
+      Serial.println(String(IDENT) + ";closebr");
+    }
+    digitalWrite(REL_open, HIGH);
+    digitalWrite(REL_close, HIGH);
+  }
+
+  if (timer ==  0)
+  {
+    if ((!digitalRead(SW_open) || !digitalRead(SW_close)))
+    {
+      lcd.setCursor(0, 2); lcd.print("Action finished     ");
+      if (!digitalRead(SW_open))  // garage opened =1 or closed =0
+      {
+        lcd.setCursor(0, 3); lcd.print("Garage open    ");
+        Serial.println(String(IDENT) + ";opened");
+      }
+      else if (!digitalRead(SW_close))
+      {
+        lcd.setCursor(0, 3); lcd.print("Garage closed  ");
+        Serial.println(String(IDENT) + ";closed");
+      }
+      tM.enable();
+    }
+    else
     {
       lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
       if (togGarage)
@@ -324,42 +363,20 @@ void CheckEvent()
         lcd.setCursor(0, 3); lcd.print("Garage closed??     ");
         Serial.println(String(IDENT) + ";close??");
       }
+      onError = true;
     }
-    else
-    {
-      flash_led(1);
-      tMV.disable();
-      tM.enable();
-    }
-    digitalWrite(REL_open, HIGH);
-    digitalWrite(REL_close, HIGH);
     togGarage = !togGarage;
-    tU.disable();
-    tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
-  else
+
+
+  if (onError)
   {
-    timer -= 1;
-    if (timer % checkFA == 0)
-    {
-      char tbs[8];
-      sprintf(tbs, "% 4d", timer / checkFA);
-      lcd.setCursor(16, 2); lcd.print(tbs);
-    }
-    if (!digitalRead(SW_open) && !digitalRead(SW_close))
-    {
-      lcd.setCursor(0, 2); lcd.print("Action finished     ");
-      if (togGarage)  // garage opened =1 or closed =0
-      {
-        lcd.setCursor(0, 3); lcd.print("Garage open    ");
-        Serial.println(String(IDENT) + ";opened");
-      }
-      else
-      {
-        lcd.setCursor(0, 3); lcd.print("Garage closed  ");
-        Serial.println(String(IDENT) + ";closed");
-      }
-    }
+    onError = false;
+    but_led(1);
+    tU.disable();
+    tMV.setInterval(TASK_SECOND / 4);
+    tMV.setCallback(MoveERROR);
+    tMV.enable();
   }
 }
 
@@ -423,6 +440,7 @@ void MoveCLOSE()
 void DispOFF()
 {
   displayIsON = false;
+  tU.disable();
   tMV.disable();
   tM.enable();
   lcd.setBacklight(BACKLIGHToff);
