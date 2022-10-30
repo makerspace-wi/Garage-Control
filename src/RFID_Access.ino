@@ -287,7 +287,6 @@ void checkRFID()
     lcd.setCursor(0, 0); lcd.print("Card# "); lcd.print(code);
     displayON();
   }
-
 }
 
 void CheckEvent()
@@ -367,7 +366,6 @@ void CheckEvent()
     }
     togGarage = !togGarage;
   }
-
 
   if (onError)
   {
