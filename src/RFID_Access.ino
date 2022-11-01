@@ -49,8 +49,8 @@
 
 // PIN Assignments
 // RFID Control ---I2C-------
-#define RESET        2  // RFID Reset
-#define IRQ          3  // RFID IRQ
+#define PN532_IRQ    2  // RFID IRQ
+#define PN532_RESET  3  // RFID Reset
 // #define SDA      A4  // Relais Garage open
 // #define SCL      A5  // Relais Garage close
 
@@ -178,6 +178,9 @@ void setup()
 
   pinMode(REL_open, OUTPUT);
   pinMode(REL_close, OUTPUT);
+
+  pinMode(PN532_RESET, OUTPUT);
+  pinMode(PN532_IRQ, INPUT_PULLUP);
 
   pinMode(SW_open, INPUT_PULLUP);
   pinMode(SW_close, INPUT_PULLUP);
