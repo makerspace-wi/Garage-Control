@@ -494,6 +494,7 @@ void Closed(void)
 // Tag registered
 void granted()
 {
+  displayON();
   tM.disable();
   tDF.disable();
   but_led(2);
@@ -644,7 +645,7 @@ void evalSerialData()
     Closed();
   }
   else if (inStr.startsWith("SETMO") && inStr.length() <9)
-  { // set time before ClosE garage
+  { // set time during door is moving
     MOVE = inStr.substring(5).toInt() * checkFA;
   }
   else if (inStr.startsWith("DISON"))
