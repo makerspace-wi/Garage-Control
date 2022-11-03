@@ -31,8 +31,8 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 30.10.2022 by Michael Muehl
-  changed: update rfid connection and change pins
+  last change: 03.11.2022 by Michael Muehl
+  changed: change pins and RFID to IRQ on I2C
 */
 #define Version "1.0.0" // (Test = 1.0.x ==> 1.0.1)
 #define xBeeName "GADO"	// machine name for xBee
@@ -44,8 +44,7 @@
 #include <Wire.h>
 #include <LCDLED_BreakOUT.h>
 #include <utility/Adafruit_MCP23017.h>
-#include <PN532_I2C.h>
-#include <PN532.h>
+#include <Adafruit_PN532.h>
 
 // PIN Assignments
 // RFID Control ---I2C-------
@@ -87,15 +86,14 @@ byte I2CTransmissionResult = 0;
 
 // DEFINES
 #define porTime         5 // [  5] wait seconds for sending Ident + POR
-#define disLightOn     30 // [.30] display light on for seconds
+#define disLightOn     10 // [ 10] display light on for seconds
 #define MOVEGARAGE     30 // [ 30] SECONDS before activation is off
 #define intervalINC  3600 // [  .] 3600 * 4
 
 // CREATE OBJECTS
 Scheduler runner;
 LCDLED_BreakOUT lcd = LCDLED_BreakOUT();
-PN532_I2C pn532i2c(Wire);
-PN532 nfc(pn532i2c);
+Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
 // Callback methods prototypes
 void checkXbee();        // Task connect to xBee Server
@@ -105,7 +103,7 @@ void repeatMES();        // Task to repeat messages
 
 void BuzzerOn();         // added by DieterH on 22.10.2017
 void FlashCallback();    // Task to let LED blink - added by D. Haude 08.03.2017
-void DispOFF();          // Task to switch display off after time
+void DisplayOFF();          // Task to switch display off after time
 
 
 // Functions define for C++
@@ -122,7 +120,7 @@ Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback); // 5000ms blinking
 
 Task tBU(TASK_SECOND / 10, 6, &BuzzerOn);               // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
 Task tBD(1, TASK_ONCE, &FlashCallback);                 // Flash Delay
-Task tDF(1, TASK_ONCE, &DispOFF);                       // display off
+Task tDF(1, TASK_ONCE, &DisplayOFF);                       // display off
 Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR);    // 250ms for Garage move display
 
 // VARIABLES
@@ -179,9 +177,6 @@ void setup()
   pinMode(REL_open, OUTPUT);
   pinMode(REL_close, OUTPUT);
 
-  pinMode(PN532_RESET, OUTPUT);
-  pinMode(PN532_IRQ, INPUT_PULLUP);
-
   pinMode(SW_open, INPUT_PULLUP);
   pinMode(SW_close, INPUT_PULLUP);
 
@@ -219,8 +214,8 @@ void setup()
     lcd.begin(20, 4);        // initialize the LCD
 
     nfc.begin();
-    versiondata = nfc.getFirmwareVersion();
     nfc.SAMConfig();
+    versiondata = nfc.getFirmwareVersion();
  
     lcd.clear();
     lcd.pinLEDs(buzzerPin, LOW);
@@ -252,7 +247,8 @@ void checkXbee()
   }
 }
 
-void retryPOR() {
+void retryPOR()
+{
   tDF.restartDelayed(TASK_SECOND * disLightOn); // restart display light
   if (getTime < porTime * 5)
   {
@@ -271,24 +267,29 @@ void retryPOR() {
     tM.enable();
     tB.disable();
     displayON();
+    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
   }
 }
 
 void checkRFID()
 {   // 500ms Tick
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-  if (success)
+  if (!digitalRead(PN532_IRQ)) 
   {
-    flash_led(4);
-    code = 0;
-    for (byte i = 0; i < uidLength; i++) {
-      code = ((code + uid[i]) * 10);
+    success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+    // Serial.println("nfc;" + String(success));
+    if (success)
+    {
+      flash_led(4);
+      code = 0;
+      for (byte i = 0; i < uidLength; i++) {
+        code = ((code + uid[i]) * 10);
+      }
+      Serial.println("card;" + String(code));
+      // Display changes
+      lcd.setCursor(5, 0); lcd.print("               ");
+      lcd.setCursor(0, 0); lcd.print("Card# "); lcd.print(code);
+      displayON();
     }
-    Serial.println("card;" + String(code));
-    // Display changes
-    lcd.setCursor(5, 0); lcd.print("               ");
-    lcd.setCursor(0, 0); lcd.print("Card# "); lcd.print(code);
-    displayON();
   }
 }
 
@@ -342,12 +343,12 @@ void CheckEvent()
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
       if (!digitalRead(SW_open))  // garage opened =1 or closed =0
       {
-        lcd.setCursor(0, 3); lcd.print("Garage open    ");
+        lcd.setCursor(0, 3); lcd.print("Garage open         ");
         Serial.println(String(IDENT) + ";opened");
       }
       else if (!digitalRead(SW_close))
       {
-        lcd.setCursor(0, 3); lcd.print("Garage closed  ");
+        lcd.setCursor(0, 3); lcd.print("Garage closed       ");
         Serial.println(String(IDENT) + ";closed");
       }
       tM.enable();
@@ -357,8 +358,8 @@ void CheckEvent()
       lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
       if (togGarage)
       {
-      lcd.setCursor(0, 3); lcd.print("Garage open??       ");
-      Serial.println(String(IDENT) + ";open??");
+        lcd.setCursor(0, 3); lcd.print("Garage open??       ");
+        Serial.println(String(IDENT) + ";open??");
       }
       else
       {
@@ -438,7 +439,7 @@ void MoveCLOSE()
   }
 }
 
-void DispOFF()
+void DisplayOFF()
 {
   displayIsON = false;
   tU.disable();
@@ -448,6 +449,7 @@ void DispOFF()
   lcd.clear();
   but_led(1);
   flash_led(1);
+  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
 }
 // END OF TASKS ---------------------------------
 
@@ -497,9 +499,7 @@ void Closed(void)
 // Tag registered
 void granted()
 {
-  displayON();
   tM.disable();
-  tDF.disable();
   but_led(2);
   flash_led(1);
   GoodSound();
@@ -684,16 +684,19 @@ void evalSerialData()
   response.  Multiple bytes of data may be available.
 */
 void serialEvent()
- {
-  char inChar = (char)Serial.read();
-  if (inChar == '\x0d')
+{
+  while (Serial.available())
   {
-    evalSerialData();
-    inStr = "";
-  }
-  else if (inChar != '\x0a')
-  {
-    inStr += inChar;
+    char inChar = (char)Serial.read();
+    if (inChar == '\x0d')
+    {
+      evalSerialData();
+      inStr = "";
+    }
+    else if (inChar != '\x0a')
+    {
+      inStr += inChar;
+    }
   }
 }
 // End Funktions Serial Input -------------------
