@@ -149,7 +149,7 @@ uint32_t versiondata;       // Versiondata of PN5xx
 // Variables can be set externaly: ---
 // --- on timed, time before new activation
 unsigned int MOVE = MOVEGARAGE  * checkFA; // RAM cell for before activation is off
-bool posDoor = false;   // bit toggle garage closed = false
+bool posDoor = false;    // bit position door closed = false
 bool togLED = LOW;       // bit toggle LEDs on / off
 bool togMOVE = false;
 
