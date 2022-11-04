@@ -1,4 +1,4 @@
-# Garage-Control_B0.9.x
+# Garage-Control_1.0.x
 Entry Control for Makerspace Wiesbaden Garage Door
 
 Momentan wird unsere Garage mit einem Schlüssel geöffnet und geschlossen. 
