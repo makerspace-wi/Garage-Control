@@ -31,8 +31,8 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 03.11.2022 by Michael Muehl
-  changed: change pins and RFID to IRQ on I2C
+  last change: 04.11.2022 by Michael Muehl
+  changed: change name togGarage to posDoor and check difference to door value 
 */
 #define Version "1.0.0" // (Test = 1.0.x ==> 1.0.1)
 #define xBeeName "GADO"	// machine name for xBee
@@ -149,7 +149,7 @@ uint32_t versiondata;       // Versiondata of PN5xx
 // Variables can be set externaly: ---
 // --- on timed, time before new activation
 unsigned int MOVE = MOVEGARAGE  * checkFA; // RAM cell for before activation is off
-bool togGarage = true;   // bit toggle garage closed = false
+bool posDoor = false;   // bit toggle garage closed = false
 bool togLED = LOW;       // bit toggle LEDs on / off
 bool togMOVE = false;
 
@@ -322,7 +322,7 @@ void CheckEvent()
   {
     onError = true;
     lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-    if (togGarage)
+    if (posDoor)
     {
       lcd.setCursor(0, 3); lcd.print("Door moved up???    ");
       Serial.println(String(IDENT) + ";openbr");
@@ -338,7 +338,7 @@ void CheckEvent()
 
   if (timer ==  0)
   {
-    if ((!digitalRead(SW_open) || !digitalRead(SW_close)))
+    if (((!digitalRead(SW_open) && posDoor) || (!digitalRead(SW_close) && !posDoor)))
     {
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
       if (!digitalRead(SW_open))  // garage opened =1 or closed =0
@@ -356,7 +356,7 @@ void CheckEvent()
     else
     {
       lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
-      if (togGarage)
+      if (posDoor)
       {
         lcd.setCursor(0, 3); lcd.print("Garage open??       ");
         Serial.println(String(IDENT) + ";open??");
@@ -368,7 +368,6 @@ void CheckEvent()
       }
       onError = true;
     }
-    togGarage = !togGarage;
   }
 
   if (onError)
@@ -481,7 +480,7 @@ void Opened(void)
   lcd.setCursor(0, 3); lcd.print("Open Garage");
   digitalWrite(REL_open, LOW);
   tMV.setCallback(MoveOPEN);
-  togGarage = true;
+  posDoor = true;
   granted();
 }
 
@@ -492,7 +491,7 @@ void Closed(void)
   lcd.setCursor(0, 3); lcd.print("Close Garage");
   digitalWrite(REL_close, LOW);
   tMV.setCallback(MoveCLOSE);
-  togGarage = false;
+  posDoor = false;
   granted();
 }
 
