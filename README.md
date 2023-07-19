@@ -27,7 +27,7 @@ Wird der RFID-Chip nochmals an das Lesegerät gehalten, reagiert Symcon mit eine
 
 Mit der NOT STOP Taste kann das Auf- und Zufahren gestoppt werden, falls sich versehentlich was im Führungsweg des Rolltors befindet.
 
-![IMG_2682](https://github.com/makerspace-wi/Garage-Control/assets/42463588/8a614019-b9a1-47b2-84d5-a168b6a27a21)
+<img src="https://github.com/makerspace-wi/Garage-Control/assets/42463588/8a614019-b9a1-47b2-84d5-a168b6a27a21" width="500px">
 ![IMG_2681](https://github.com/makerspace-wi/Garage-Control/assets/42463588/8235685b-468d-4010-9f8a-889b63d0cb86)
 ![IMG_2680](https://github.com/makerspace-wi/Garage-Control/assets/42463588/66339dbe-f8c4-4da0-b39c-f666d4c72afb)
 ![IMG_2677](https://github.com/makerspace-wi/Garage-Control/assets/42463588/bc2e1f6a-a4cc-4f28-be03-ebc576b1ba77)
