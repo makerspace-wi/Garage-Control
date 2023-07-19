@@ -1,15 +1,7 @@
 # Garage-Control_1.0.x
-Entry Control for Makerspace Wiesbaden Garage Door
+Garage Door Entry Control for Makerspace Wiesbaden 
 
-Momentan wird unsere Garage mit einem Schlüssel geöffnet und geschlossen. 
-Oft wird der Schlüssel verlegt und muss gesucht werden, wenn was aus der Garage benötigt wird.
-Desweiteren ist momentan nicht nachvollziehbar wer von den Mitgliedern Zugang zur Garage hatte.
-
-Aus den Reihen der Mitglieder kam der Vorschlag auch den Garagenzugang mit RFID-Zugangsteuerung zu realisieren.
-
-Dieser Vorschlag wurde vom Vorstand als gut befunden und soll in naher Zukunft für die existierende Infrastruktur durch das Technik-Team realisiert werden.
-
-Im folgenden dazu unser "Brain Storming":
+# Zusammenfassung:
 
 - XBee ZBee Funkreichweite wurde geprüft und ist ausreichend!
 - Aussen RFID-Leser mit NOT STOP-Taste und Display (I2C Bus für RFID-Reader & Display, Spannungsversorgung, Tasterkontakte und LED) 
