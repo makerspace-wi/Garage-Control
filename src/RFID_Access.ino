@@ -34,7 +34,7 @@
   last change: 24.07.2023 by Michael Muehl
   changed: send door status, every time status has changed and every hour
 */
-#define Version "1.1.0" // (Test = 1.1.x ==> 1.1.1)
+#define Version "1.1.1" // (Test = 1.1.x ==> 1.1.2)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -300,7 +300,7 @@ void CheckEvent()
   uint8_t buttons = lcd.readButtons();
   if (timer > 0)
   {
-    timer -= 1;
+    --timer;
     if (timer % checkFA == 0)
     {
       char tbs[8];
@@ -415,7 +415,7 @@ void doorSTA()
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
     staCount = repHour * statusFA;
   }
-  staCount -= 1;
+  --staCount;
 }
 
 void MoveERROR()
