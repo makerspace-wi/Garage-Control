@@ -31,12 +31,14 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 04.11.2022 by Michael Muehl
-  changed: change name togGarage to posDoor and check difference to door value 
+  last change: 24.07.2023 by Michael Muehl
+  changed: send door status, every time status has changed and every hour
 */
-#define Version "1.0.0" // (Test = 1.0.x ==> 1.0.1)
+#define Version "1.1.0" // (Test = 1.1.x ==> 1.1.1)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
+#define statusFA     4  // status every (1 second / FActor)
+#define repHour   3600  // [3600] seconds per hour
 
 // ---------------------
 #include <Arduino.h>
@@ -48,14 +50,14 @@
 
 // PIN Assignments
 // RFID Control ---I2C-------
-#define PN532_IRQ    2  // RFID IRQ
-#define PN532_RESET  3  // RFID Reset
 // #define SDA      A4  // Relais Garage open
 // #define SCL      A5  // Relais Garage close
+#define PN532_IRQ    2  // RFID IRQ
+#define PN532_RESET  3  // RFID Reset
 
-// Garage Control (ext)
-#define SW_open      5  // position switch opened
-#define SW_close     7  // position switch closed
+// Garage Control (ext) [sw_val]
+#define SW_open      5  // position switch opened [Bit 0]
+#define SW_close     7  // position switch closed [Bit 1]
 
 #define currMotor   A0  // [not used]
 #define REL_open    A2  // Relais Garage open
@@ -86,7 +88,7 @@ byte I2CTransmissionResult = 0;
 
 // DEFINES
 #define porTime         5 // [  5] wait seconds for sending Ident + POR
-#define disLightOn     10 // [ 10] display light on for seconds
+#define disLightOn     15 // [ 15] display light on for seconds
 #define MOVEGARAGE     30 // [ 30] SECONDS before activation is off
 #define intervalINC  3600 // [  .] 3600 * 4
 
@@ -103,8 +105,9 @@ void repeatMES();        // Task to repeat messages
 
 void BuzzerOn();         // added by DieterH on 22.10.2017
 void FlashCallback();    // Task to let LED blink - added by D. Haude 08.03.2017
-void DisplayOFF();          // Task to switch display off after time
+void DisplayOFF();       // Task to switch display off after time
 
+void doorSTA();          // Task for door STAtus
 
 // Functions define for C++
 void OnTimed(long);
@@ -113,15 +116,17 @@ void flash_led(int);
 void MoveERROR();
 
 // TASKS
-Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee);	    // 500ms main task
-Task tR(TASK_SECOND / 2, 0, &repeatMES);                // 500ms * repMES repeat messages
-Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent);  // 1000ms / checkFA ctor
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback); // 5000ms blinking
+Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &runner);	      // 500ms main task
+Task tR(TASK_SECOND / 2, 0, &repeatMES, &runner);                   // 500ms * repMES repeat messages
+Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &runner); // 1000ms / checkFActor
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback, &runner);    // 5000ms blinking
 
-Task tBU(TASK_SECOND / 10, 6, &BuzzerOn);               // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
-Task tBD(1, TASK_ONCE, &FlashCallback);                 // Flash Delay
-Task tDF(1, TASK_ONCE, &DisplayOFF);                       // display off
-Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR);    // 250ms for Garage move display
+Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &runner);                  // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
+Task tBD(1, TASK_ONCE, &FlashCallback, &runner);                    // Flash Delay
+Task tDF(1, TASK_ONCE, &DisplayOFF, &runner);                       // display off
+
+Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &runner);       // 250ms for Garage move display
+Task tDS(TASK_SECOND / statusFA, TASK_FOREVER, &doorSTA, &runner);  // 1000ms / statusFActor
 
 // VARIABLES
 uint8_t success;                          // RFID
@@ -138,10 +143,11 @@ int minutes = 0;
 byte atqa[2];
 byte atqaLen = sizeof(atqa);
 byte intervalRFID = 0;      // 0 = off; from 1 sec to 6 sec after Displayoff
-// Cleaner Control
 bool displayIsON = false;   // if display is switched on = true
-bool isCleaner  = false;    // is cleaner under control (installed)
-byte steps4push = 0;        // steps for push button action
+
+byte sw_val = 0;            // garage switch value (open / closed)
+byte sw_last = 255;         // garage switch value last time
+
 unsigned int pushCount = 0; // counter how long push button in action
 
 uint32_t versiondata;       // Versiondata of PN5xx
@@ -149,9 +155,10 @@ uint32_t versiondata;       // Versiondata of PN5xx
 // Variables can be set externaly: ---
 // --- on timed, time before new activation
 unsigned int MOVE = MOVEGARAGE  * checkFA; // RAM cell for before activation is off
-bool posDoor = false;    // bit position door closed = false
+bool movDoor = false;    // bit move door [false = close]
 bool togLED = LOW;       // bit toggle LEDs on / off
 bool togMOVE = false;
+unsigned int staCount = 0;   // counter to send status ervery hour
 
 // Serial with xBee
 String inStr = "";      // a string to hold incoming data
@@ -186,14 +193,7 @@ void setup()
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
 
-  runner.init();
-  runner.addTask(tM);
-  runner.addTask(tB);
-  runner.addTask(tU);
-  runner.addTask(tMV);
-  runner.addTask(tBU);
-  runner.addTask(tBD);
-  runner.addTask(tDF);
+  runner.startNow();
 
   // I2C _ Ports definition only for test if I2C is avilable
   Wire.beginTransmission(I2CPort);
@@ -252,12 +252,12 @@ void retryPOR()
   tDF.restartDelayed(TASK_SECOND * disLightOn); // restart display light
   if (getTime < porTime * 5)
   {
-    tB.setInterval(TASK_SECOND * getTime);
-    ++getTime;
     Serial.print(String(IDENT) + ";POR;V" + String(Version));
     Serial.print(";PN5"); Serial.print((versiondata>>24) & 0xFF, HEX);
     Serial.print(";V"); Serial.print((versiondata>>16) & 0xFF, DEC);
     Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+    ++getTime;
+    tB.setInterval(TASK_SECOND * getTime);
     lcd.setCursor(0, 0); lcd.print(String(IDENT) + " ");
     lcd.setCursor(16, 1); lcd.print((getTime - porTime) * porTime);
   }
@@ -268,11 +268,12 @@ void retryPOR()
     tB.disable();
     displayON();
     nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+    tDS.enable();
   }
 }
 
-void checkRFID()
-{   // 500ms Tick
+void checkRFID()  // wait until rfid token is recognized
+{ // 500ms Tick
   if (!digitalRead(PN532_IRQ)) 
   {
     success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
@@ -281,7 +282,8 @@ void checkRFID()
     {
       flash_led(4);
       code = 0;
-      for (byte i = 0; i < uidLength; i++) {
+      for (byte i = 0; i < uidLength; i++)
+      {
         code = ((code + uid[i]) * 10);
       }
       Serial.println("card;" + String(code));
@@ -309,11 +311,11 @@ void CheckEvent()
     {
       digitalWrite(REL_open, HIGH);
       digitalWrite(REL_close, HIGH);
-      // stop all
-      but_led(1);
+      // stop movement
       flash_led(1);
       tU.disable();
       tMV.disable();
+      but_led(1); // only red possible
     }
     tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
@@ -322,7 +324,7 @@ void CheckEvent()
   {
     onError = true;
     lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-    if (posDoor)
+    if (movDoor)
     {
       lcd.setCursor(0, 3); lcd.print("Door moved up???    ");
       Serial.println(String(IDENT) + ";openbr");
@@ -338,15 +340,15 @@ void CheckEvent()
 
   if (timer ==  0)
   {
-    if (((!digitalRead(SW_open) && posDoor) || (!digitalRead(SW_close) && !posDoor)))
+    if (((sw_val == 1 && movDoor) || (sw_val == 2 && !movDoor)))
     {
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
-      if (!digitalRead(SW_open))  // garage opened =1 or closed =0
+      if (sw_val == 1)  // garage opened =1 or closed =2
       {
         lcd.setCursor(0, 3); lcd.print("Garage open         ");
         Serial.println(String(IDENT) + ";opened");
       }
-      else if (!digitalRead(SW_close))
+      else if (sw_val == 2)
       {
         lcd.setCursor(0, 3); lcd.print("Garage closed       ");
         Serial.println(String(IDENT) + ";closed");
@@ -356,7 +358,7 @@ void CheckEvent()
     else
     {
       lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
-      if (posDoor)
+      if (movDoor)
       {
         lcd.setCursor(0, 3); lcd.print("Garage open??       ");
         Serial.println(String(IDENT) + ";open??");
@@ -397,6 +399,23 @@ void BlinkCallback()
 void FlashCallback()
 {
   flash_led(1);
+}
+
+void doorSTA()
+{
+  bitWrite(sw_val, 0, digitalRead(SW_open));
+  bitWrite(sw_val, 1, digitalRead(SW_close));
+  if (sw_val != sw_last )
+  {
+    sw_last = sw_val;
+    staCount = 0;
+  }
+  if (staCount == 0)
+  {
+    Serial.println(String(IDENT) + ";stat;" + String(sw_val));
+    staCount = repHour * statusFA;
+  }
+  staCount -= 1;
 }
 
 void MoveERROR()
@@ -465,51 +484,42 @@ void noreg() {
   tDF.restartDelayed(TASK_SECOND * disLightOn);
 }
 
-void SwStatus(void)
-{    // switch status)
-  byte sw_val =0b00000000;
-  bitWrite(sw_val, 0, digitalRead(SW_open));
-  bitWrite(sw_val, 1, digitalRead(SW_close));
-  Serial.println(String(IDENT) + ";stat;" + String(sw_val));
-}
-
 void Opened(void)
-{    // Open garage)
+{ // Open garage)
+  movDoor = true;
   Serial.println(String(IDENT) + ";open");
   lcd.setCursor(0, 2); lcd.print("Garage open in  : ");
   lcd.setCursor(0, 3); lcd.print("Open Garage");
   digitalWrite(REL_open, LOW);
   tMV.setCallback(MoveOPEN);
-  posDoor = true;
   granted();
 }
 
 void Closed(void)
-{    // Close garage)
+{ // Close garage)
+  movDoor = false;
   Serial.println(String(IDENT) + ";close");
   lcd.setCursor(0, 2); lcd.print("Garage closed in: ");
   lcd.setCursor(0, 3); lcd.print("Close Garage");
   digitalWrite(REL_close, LOW);
   tMV.setCallback(MoveCLOSE);
-  posDoor = false;
   granted();
 }
 
-// Tag registered
 void granted()
-{
+{ // Tag registered
   tM.disable();
   but_led(2);
   flash_led(1);
   GoodSound();
-  timer =  MOVE;
+  timer = MOVE;
   tMV.setInterval(TASK_SECOND / 4);
   tMV.enable();
   tU.enable();
 }
 
 void but_led(int var)
-{
+{ // button led switching
   switch (var)
   {
   case 1: // LED rt & gn off
@@ -528,7 +538,7 @@ void but_led(int var)
 }
 
 void flash_led(int var)
-{
+{ // flash leds switching
   switch (var)
   {
     case 1:   // LEDs off
@@ -630,7 +640,7 @@ void evalSerialData()
   }
   else if (inStr.startsWith("RS") && inStr.length() ==2)
   {
-    SwStatus();
+    Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
   else if (inStr.startsWith("NOREG") && inStr.length() ==5)
   {
