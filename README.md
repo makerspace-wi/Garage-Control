@@ -1,4 +1,4 @@
-# Garage-Control_1.0.x
+# Garage-Control
 Garage Door Entry Control for Makerspace Wiesbaden 
 
 # Zusammenfassung:
