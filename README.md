@@ -14,6 +14,13 @@
 - es werden Rolltor Positionssensoren (Reed Kontakte) verwendet
 
 # Nutzung
+## ACHTUNG, lässt sich nur öffnen und schließen, wenn das Mitglied 'eingeloggt' ist
+### Ausgangszustand Rolltor geschlossen
+
+- Das Display vom Lesegerät ist dunkel
+- RFID Chip an Lesegerät halten, das Display sollte einschalten und Nachrichten zeigen
+- Wenn der Chip freigeschaltet ist, sendet Symcon einen 'OPEN' Befehl - das Tor öffnet sich
+- ist der Chip nicht freigeschaltet oder das Mitglied nicht eingeloggt verwirft Symcon den Request
 RFID Chip wird an Lesegerät gehalten und die UID von Arduino empfangen - Arduino sendet die dekodierte UID an Symcon zur Prüfung
 Wenn die UID freigeschaltet ist, sendet Symcon einen 'OPEN' Befehl - ist die UID nicht freigeschaltet, verwirft Symcon den Request.<br>
 Wird der RFID-Chip nochmals an das Lesegerät gehalten, reagiert Symcon mit einen 'CLOSE' Befehl
