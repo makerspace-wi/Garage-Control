@@ -36,7 +36,7 @@
 - Mit der <b>NOT STOP</b> Taste am Lesegerät kann das Auf- oder Zufahren sofort gestoppt werden, falls sich versehentlich was im Führungsweg des Rolltors befindet
 - bei Betätigung der Taste bleibt das Rolltor sofort stehen und fährt erst nach nochmaligem präsentieren des RFID-Chips erst mal in die "Offen"-Position
 
-### Was wird geloggt
+### Was wird geloggt?
 - jede Öffnung und folgende Schließung wird in der Datenbank geloggt
 - dabei wird
   - Öffnungs Datum/Zeit, die Mitglieds MID und der Name des Mitglieds und
