@@ -44,6 +44,14 @@
   - wie lange die Garage geöffnet war
 - die Daten werden nach 30 Tage gelöscht
 
+### Wenn es Probleme gibt
+#### Der RFID-Chip wird nicht erkannt
+bitte mehrfach versuchen - bleibt dies erfolglos ist der kleine rote RESET-Button an der Unterseite des Lesegerätes zu betätigen. Danach bitte warten, bis sich das Gerät mit unserem System neu synchronisiert hat und den aktuellen Timestamp anzeigt. Danach sollte der RFID-Chip wieder erkannt werden.
+#### Die elektronische Öffnungs-/Schließelektronik funktioniert nicht
+bitte an einen Werkstattleiter wenden - unser Backup-Schlüssel wird im Werkstattleiterfach aufbewahrt
+#### Die Garage Door Entry Control ist auch unsere Alarmanlage
+Wird das Garagentor gewaltsam oder per Schlüssel geöffnet - geht sofort ein <b>Intrusion Alarm</b> an die Administratoren und den Vorstand
+<br>
 <img src="https://github.com/makerspace-wi/Garage-Control/assets/42463588/8a614019-b9a1-47b2-84d5-a168b6a27a21" width="500px">
 <img src="https://github.com/makerspace-wi/Garage-Control/assets/42463588/8235685b-468d-4010-9f8a-889b63d0cb86" width="500px">
 <br>
