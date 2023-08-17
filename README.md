@@ -6,7 +6,7 @@
 # Zusammenfassung:
 
 - Kommunikation mit dem SYMCON Rechner via XBee ZBee Funktechnik
-- Aussen RFID-Leser mit NOT STOP-Taste und Display (I2C Bus für RFID-Reader & Display, Spannungsversorgung, Tasterkontakte und LED) 
+- Aussen RFID-Leser mit NOT STOP-Taste und Display (I2C Bus für RFID-Reader & Display, Tasterkontakte und LED) 
 - Innen Arduino, Netzteil, XBee ZBee Modul und Relaisplatine (für Rolltorsteuerung)
 - Das Steuerprogramm (Arduino) wird 'dumm' gehalten 
   - es sendet die gelesene UID und Tasterkontakte an Symcon zur Prüfung ob vorhanden und freigegeben
