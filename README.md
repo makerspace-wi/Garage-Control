@@ -38,10 +38,10 @@
 
 ### Was wird geloggt?
 - jede Öffnung und folgende Schließung wird in der Datenbank geloggt
-- dabei wird
-  - Öffnungs Datum/Zeit, die Mitglieds MID und der Name des Mitglieds und
-  - Schließungs Datum/Zeit, die Mitglieds MID und der Name des Mitglieds und
-  - wie lange die Garage geöffnet war
+- es wird
+  - die Öffnungs Datum/Zeit, die Mitglieds MID und der Name des Mitglieds
+  - die Schließungs Datum/Zeit, die Mitglieds MID und der Name des Mitglieds
+  - und wie lange die Garage geöffnet war aufgezeichnet
 - die Daten werden nach 30 Tage gelöscht
 
 ### Wenn es Probleme gibt
