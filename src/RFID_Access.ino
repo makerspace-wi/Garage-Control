@@ -1,9 +1,9 @@
 /* DESCRIPTION
   ====================
-  started on 01JAN2017 - uploaded on 06.01.2017 by Dieter
+  uploaded on 20.09.2021 by Dieter
   Code for garage control over RFID
   reading IDENT from xBee, retrait sending ...POR until time responds
-  switch on claener by current control and separate cleaner on
+  open or close garage door
 
   Commands to Raspi --->
   xBeeName - from xBee (=Ident) [max 4 caracter including numbers]
@@ -23,6 +23,7 @@
   'time'   - format time33.33.3333 33:33:33
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
+  'reset'  - reset relais = all open
   'rs'     - request status
   'noreg'  - RFID-Chip not registed
 
@@ -31,10 +32,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 24.07.2023 by Michael Muehl
-  changed: send door status, every time status has changed and every hour
+  last change: 20.08.2023 by Michael Muehl
+  changed: Open / Close changed, include command reset all relais 
 */
-#define Version "1.1.1" // (Test = 1.1.x ==> 1.1.2)
+#define Version "1.2.0" // (Test = 1.2.x ==> 1.2.1)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -56,8 +57,8 @@
 #define PN532_RESET  3  // RFID Reset
 
 // Garage Control (ext) [sw_val]
-#define SW_open      5  // position switch opened [Bit 0]
-#define SW_close     7  // position switch closed [Bit 1]
+#define SW_close     5  // position switch closed [Bit 0]
+#define SW_open      7  // position switch opened [Bit 1]
 
 #define currMotor   A0  // [not used]
 #define REL_open    A2  // Relais Garage open
@@ -298,30 +299,10 @@ void checkRFID()  // wait until rfid token is recognized
 void CheckEvent()
 {
   uint8_t buttons = lcd.readButtons();
-  if (timer > 0)
-  {
-    --timer;
-    if (timer % checkFA == 0)
-    {
-      char tbs[8];
-      sprintf(tbs, "% 4d", timer / checkFA);
-      lcd.setCursor(16, 2); lcd.print(tbs);
-    }
-    if (timer == 0)
-    {
-      digitalWrite(REL_open, HIGH);
-      digitalWrite(REL_close, HIGH);
-      // stop movement
-      flash_led(1);
-      tU.disable();
-      tMV.disable();
-      but_led(1); // only red possible
-    }
-    tDF.restartDelayed(TASK_SECOND * disLightOn);
-  }
-
   if ((buttons & BUTTON_P2) ==2)
-  {
+  { // stop movement
+    digitalWrite(REL_open, HIGH);
+    digitalWrite(REL_close, HIGH);
     onError = true;
     lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
     if (movDoor)
@@ -334,8 +315,27 @@ void CheckEvent()
       lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
       Serial.println(String(IDENT) + ";closebr");
     }
-    digitalWrite(REL_open, HIGH);
-    digitalWrite(REL_close, HIGH);
+  }
+
+  if (timer > 0)
+  {
+    --timer;
+    if (timer == 0)
+    { // stop movement
+      digitalWrite(REL_open, HIGH);
+      digitalWrite(REL_close, HIGH);
+      flash_led(1);
+      tU.disable();
+      tMV.disable();
+      but_led(1); // only red possible
+    }
+    if (timer % checkFA == 0)
+    {
+      char tbs[8];
+      sprintf(tbs, "% 4d", timer / checkFA);
+      lcd.setCursor(16, 2); lcd.print(tbs);
+    }
+    tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
 
   if (timer ==  0)
@@ -637,6 +637,11 @@ void evalSerialData()
     lcd.setCursor(0, 1); lcd.print(inStr.substring(4,24));
     tB.setInterval(TASK_SECOND / 2);
     getTime = 255;
+  }
+  else if (inStr.startsWith("RESET") && inStr.length() ==5)
+  {
+    digitalWrite(REL_open, HIGH);
+    digitalWrite(REL_close, HIGH);
   }
   else if (inStr.startsWith("RS") && inStr.length() ==2)
   {
