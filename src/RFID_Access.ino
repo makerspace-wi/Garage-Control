@@ -35,7 +35,7 @@
   last change: 20.08.2023 by Michael Muehl
   changed: Open / Close changed, include command reset all relais 
 */
-#define Version "1.2.0" // (Test = 1.2.x ==> 1.2.1)
+#define Version "1.2.1" // (Test = 1.2.x ==> 1.2.2)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -328,6 +328,7 @@ void CheckEvent()
       tU.disable();
       tMV.disable();
       but_led(1); // only red possible
+      sw_last = 255;
     }
     if (timer % checkFA == 0)
     {
