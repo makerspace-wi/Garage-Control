@@ -468,6 +468,7 @@ void DisplayOFF()
   lcd.clear();
   but_led(1);
   flash_led(1);
+  sw_last = 255;
   nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
 }
 // END OF TASKS ---------------------------------
