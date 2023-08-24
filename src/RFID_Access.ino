@@ -35,7 +35,7 @@
   last change: 20.08.2023 by Michael Muehl
   changed: Open / Close changed, include command reset all relais 
 */
-#define Version "1.2.1" // (Test = 1.2.x ==> 1.2.2)
+#define Version "1.2.2" // (Test = 1.2.x ==> 1.2.3)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -626,12 +626,13 @@ void evalSerialData()
     if (inStr.startsWith(xBeeName))
     {
       IDENT = inStr;
+      Serial.println("ATCN");
     }
     else
     {
-      lcd.setCursor(0, 0); lcd.print(inStr);
+      lcd.setCursor(0, 2);
+      lcd.print("?:" + inStr + ";not for:" + xBeeName); 
     }
-    Serial.println("ATCN");
   }
   else if (inStr.startsWith("TIME"))
   {
