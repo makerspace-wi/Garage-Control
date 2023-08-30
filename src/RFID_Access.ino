@@ -32,10 +32,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 20.08.2023 by Michael Muehl
-  changed: Open / Close changed, include command reset all relais 
+  last change: 30.08.2023 by Michael Muehl
+  changed: Close changed: no waiting for action, after close break 
 */
-#define Version "1.2.2" // (Test = 1.2.x ==> 1.2.3)
+#define Version "1.2.3" // (Test = 1.2.x ==> 1.2.4)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -268,7 +268,7 @@ void retryPOR()
     tM.enable();
     tB.disable();
     displayON();
-    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); // start RFID for next reading
     tDS.enable();
   }
 }
@@ -277,7 +277,7 @@ void checkRFID()  // wait until rfid token is recognized
 { // 500ms Tick
   if (!digitalRead(PN532_IRQ)) 
   {
-    success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+    success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);  // read RFID
     // Serial.println("nfc;" + String(success));
     if (success)
     {
@@ -314,6 +314,7 @@ void CheckEvent()
     {
       lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
       Serial.println(String(IDENT) + ";closebr");
+      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
     }
   }
 
@@ -328,7 +329,7 @@ void CheckEvent()
       tU.disable();
       tMV.disable();
       but_led(1); // only red possible
-      sw_last = 255;
+      sw_last = 255;  // send status
     }
     if (timer % checkFA == 0)
     {
@@ -381,6 +382,7 @@ void CheckEvent()
     tMV.setInterval(TASK_SECOND / 4);
     tMV.setCallback(MoveERROR);
     tMV.enable();
+    sw_last = 255;  // send status
   }
 }
 
@@ -468,8 +470,8 @@ void DisplayOFF()
   lcd.clear();
   but_led(1);
   flash_led(1);
-  sw_last = 255;
-  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+  sw_last = 255;  // send status
+  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); // start RFID for next reading
 }
 // END OF TASKS ---------------------------------
 
