@@ -32,8 +32,8 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 30.08.2023 by Michael Muehl
-  changed: Close changed: no waiting for action, after close break 
+  last change: 09.09.2023 by Michael Muehl
+  changed: Close changed: no waiting for action, after close break, restart RFID ervery hour 
 */
 #define Version "1.2.3" // (Test = 1.2.x ==> 1.2.4)
 #define xBeeName "GADO"	// machine name for xBee
@@ -417,6 +417,7 @@ void doorSTA()
   {
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
     staCount = repHour * statusFA;
+    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
   }
   --staCount;
 }
