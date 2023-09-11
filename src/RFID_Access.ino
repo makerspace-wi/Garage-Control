@@ -32,10 +32,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 09.09.2023 by Michael Muehl
-  changed: Close changed: no waiting for action, after close break, restart RFID ervery hour 
+  last change: 11.09.2023 by Michael Muehl
+  changed: Close changed: restart RFID ervery hour, diplaqy message if no RFID is available
 */
-#define Version "1.2.3" // (Test = 1.2.x ==> 1.2.4)
+#define Version "1.2.4" // (Test = 1.2.x ==> 1.2.5)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -210,9 +210,9 @@ void setup()
   {
     I2CFound++;
   }
-  if (I2CFound == 2)
+  if (I2CFound >= 1)   // min display available
   {
-    lcd.begin(20, 4);        // initialize the LCD
+    lcd.begin(20, 4);  // initialize the LCD
 
     nfc.begin();
     nfc.SAMConfig();
@@ -270,6 +270,10 @@ void retryPOR()
     displayON();
     nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); // start RFID for next reading
     tDS.enable();
+    if (I2CFound == 1)
+    {
+      lcd.setCursor(0, 3); lcd.print("No RFID: PN532 V3.0 ");
+    }
   }
 }
 
