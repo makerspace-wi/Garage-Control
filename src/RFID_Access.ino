@@ -32,7 +32,7 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 11.09.2023 by Michael Muehl
+  last change: 12.09.2023 by Michael Muehl
   changed: Close changed: restart RFID ervery hour, diplaqy message if no RFID is available
 */
 #define Version "1.2.4" // (Test = 1.2.x ==> 1.2.5)
@@ -272,7 +272,7 @@ void retryPOR()
     tDS.enable();
     if (I2CFound == 1)
     {
-      lcd.setCursor(0, 3); lcd.print("No RFID: PN532 V3.0 ");
+      lcd.setCursor(0, 3); lcd.print("No RFID: PN532 V1.6 ");
     }
   }
 }
