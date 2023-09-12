@@ -33,9 +33,9 @@
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
   last change: 12.09.2023 by Michael Muehl
-  changed: Close changed: restart RFID ervery hour, diplaqy message if no RFID is available
+  changed: Close changed: restart RFID every hour, diplaqy message if no RFID is available, 3 digit for counter
 */
-#define Version "1.2.4" // (Test = 1.2.x ==> 1.2.5)
+#define Version "1.2.5" // (Test = 1.2.x ==> 1.2.6)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -338,8 +338,8 @@ void CheckEvent()
     if (timer % checkFA == 0)
     {
       char tbs[8];
-      sprintf(tbs, "% 4d", timer / checkFA);
-      lcd.setCursor(16, 2); lcd.print(tbs);
+      sprintf(tbs, "% 3d", timer / checkFA);
+      lcd.setCursor(17, 2); lcd.print(tbs);
     }
     tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
