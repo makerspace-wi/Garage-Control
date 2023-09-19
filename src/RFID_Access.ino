@@ -23,8 +23,9 @@
   'time'   - format time33.33.3333 33:33:33
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
-  'reset'  - reset relais = all open
-  'rs'     - request status
+  'resre'  - reset relais = all open
+  'resrf'  - reset rfid PN532
+  'reqst'  - request status
   'noreg'  - RFID-Chip not registed
 
   'setmo'  - set time for moving door
@@ -33,9 +34,9 @@
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
   last change: 12.09.2023 by Michael Muehl
-  changed: Close changed: restart RFID every hour, diplaqy message if no RFID is available, 3 digit for counter
+  changed: 3 digit for counter, reset for rfid add, rename reset and request
 */
-#define Version "1.2.5" // (Test = 1.2.x ==> 1.2.6)
+#define Version "1.2.6" // (Test = 1.2.x ==> 1.2.7)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -648,12 +649,16 @@ void evalSerialData()
     tB.setInterval(TASK_SECOND / 2);
     getTime = 255;
   }
-  else if (inStr.startsWith("RESET") && inStr.length() ==5)
+  else if (inStr.startsWith("RESRE") && inStr.length() ==5)
   {
     digitalWrite(REL_open, HIGH);
     digitalWrite(REL_close, HIGH);
   }
-  else if (inStr.startsWith("RS") && inStr.length() ==2)
+  else if (inStr.startsWith("RESRF") && inStr.length() ==5)
+  {
+    nfc.reset();
+  }
+  else if (inStr.startsWith("REQST") && inStr.length() ==2)
   {
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
