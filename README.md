@@ -47,7 +47,7 @@
 ### Wenn es Probleme gibt
 #### Der RFID-Chip wird nicht erkannt
 bitte mehrfach versuchen - bleibt dies erfolglos ist der kleine rote RESET-Button an der Unterseite des Lesegerätes zu betätigen. Danach bitte warten, bis sich das Gerät mit unserem System neu synchronisiert hat und den aktuellen Timestamp anzeigt. Danach sollte der RFID-Chip wieder erkannt werden.<br>
-<i>Achtung, der RESET-Button ist nur aktiv, wenn die Steuerung sich im 'Ruhemodus' befindet - d.h. dass Rolltor sich nicht bewegt.</i>
+
 #### Die elektronische Öffnungs-/Schließelektronik funktioniert nicht
 bitte an einen Werkstattleiter wenden - unser Backup-Schlüssel wird im Werkstattleiterfach aufbewahrt
 #### Die Garage Door Entry Control ist auch unsere Alarmanlage
