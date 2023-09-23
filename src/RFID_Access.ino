@@ -24,7 +24,7 @@
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
   'resre'  - reset relais = all open
-  'resrf'  - reset rfid PN532
+  'stata'  - start target PN532
   'reqst'  - request status
   'noreg'  - RFID-Chip not registed
 
@@ -34,9 +34,9 @@
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
   last change: 12.09.2023 by Michael Muehl
-  changed: 3 digit for counter, reset for rfid add, rename reset and request
+  changed: 3 digit for counter, rename reset and request, start target for rfid add
 */
-#define Version "1.2.6" // (Test = 1.2.x ==> 1.2.7)
+#define Version "1.2.7" // (Test = 1.2.x ==> 1.2.8)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -55,7 +55,7 @@
 // #define SDA      A4  // Relais Garage open
 // #define SCL      A5  // Relais Garage close
 #define PN532_IRQ    2  // RFID IRQ
-#define PN532_RESET  3  // RFID Reset
+#define PN532_RESET  3  // RFID Reset [not used]
 
 // Garage Control (ext) [sw_val]
 #define SW_close     5  // position switch closed [Bit 0]
@@ -319,8 +319,8 @@ void CheckEvent()
     {
       lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
       Serial.println(String(IDENT) + ";closebr");
-      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
     }
+    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
   }
 
   if (timer > 0)
@@ -654,9 +654,9 @@ void evalSerialData()
     digitalWrite(REL_open, HIGH);
     digitalWrite(REL_close, HIGH);
   }
-  else if (inStr.startsWith("RESRF") && inStr.length() ==5)
+  else if (inStr.startsWith("STATA") && inStr.length() ==5)
   {
-    nfc.reset();
+    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
   }
   else if (inStr.startsWith("REQST") && inStr.length() ==2)
   {
