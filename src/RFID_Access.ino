@@ -33,10 +33,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 12.09.2023 by Michael Muehl
-  changed: 3 digit for counter, rename reset and request, start target for rfid add
+  last change: 26.09.2023 by Michael Muehl
+  changed: start target for rfid add, set display counter at start moving
 */
-#define Version "1.2.7" // (Test = 1.2.x ==> 1.2.8)
+#define Version "1.2.8" // (Test = 1.2.x ==> 1.2.9)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -498,7 +498,9 @@ void Opened(void)
 { // Open garage)
   movDoor = true;
   Serial.println(String(IDENT) + ";open");
-  lcd.setCursor(0, 2); lcd.print("Garage open in  : ");
+  char tbs[8];
+  sprintf(tbs, "% 3d", MOVE / checkFA);
+  lcd.setCursor(0, 2); lcd.print("Garage open in  :"); lcd.print(tbs);
   lcd.setCursor(0, 3); lcd.print("Open Garage");
   digitalWrite(REL_open, LOW);
   tMV.setCallback(MoveOPEN);
@@ -509,7 +511,9 @@ void Closed(void)
 { // Close garage)
   movDoor = false;
   Serial.println(String(IDENT) + ";close");
-  lcd.setCursor(0, 2); lcd.print("Garage closed in: ");
+  char tbs[8];
+  sprintf(tbs, "% 3d", MOVE / checkFA);
+  lcd.setCursor(0, 2); lcd.print("Garage closed in:"); lcd.print(tbs);
   lcd.setCursor(0, 3); lcd.print("Close Garage");
   digitalWrite(REL_close, LOW);
   tMV.setCallback(MoveCLOSE);
