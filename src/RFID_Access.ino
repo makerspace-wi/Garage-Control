@@ -26,17 +26,17 @@
   'resre'  - reset relais = all open
   'stata'  - start target PN532
   'reqst'  - request status
+  'nolog'  - not loged in at entry door!
   'noreg'  - RFID-Chip not registed
-
   'setmo'  - set time for moving door
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 26.09.2023 by Michael Muehl
-  changed:display counter at start moving, only door status activates rfid (nfc.start...)
+  last change: 27.09.2023 by Michael Muehl
+  changed: only door status activates rfid (nfc.start...), add nolog
 */
-#define Version "1.2.9" // (Test = 1.2.x ==> 1.3.0)
+#define Version "1.3.0" // (Test = 1.2.x ==> 1.3.1)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -480,10 +480,24 @@ void DisplayOFF()
 // END OF TASKS ---------------------------------
 
 // FUNCTIONS ------------------------------------
-void noreg() {
+void nolog()
+{ // break action
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
-  lcd.setCursor(0, 2); lcd.print("Tag not registered");
+  lcd.setCursor(0, 2); lcd.print("Not logged in -     ");
+  lcd.setCursor(0, 3); lcd.print("Login at Entry Door!");
+  tM.enable();
+  BadSound();
+  but_led(1);
+  flash_led(1);
+  tDF.restartDelayed(TASK_SECOND * disLightOn);
+}
+
+void noreg()
+{ // not registed
+  digitalWrite(REL_open, HIGH);
+  digitalWrite(REL_close, HIGH);
+  lcd.setCursor(0, 2); lcd.print("Tag not registered  ");
   lcd.setCursor(0, 3); lcd.print("===> No access! <===");
   tM.enable();
   BadSound();
@@ -493,7 +507,7 @@ void noreg() {
 }
 
 void Opened(void)
-{ // Open garage)
+{ // Open garage
   movDoor = true;
   Serial.println(String(IDENT) + ";open");
   char tbs[8];
@@ -506,7 +520,7 @@ void Opened(void)
 }
 
 void Closed(void)
-{ // Close garage)
+{ // Close garage
   movDoor = false;
   Serial.println(String(IDENT) + ";close");
   char tbs[8];
@@ -664,9 +678,13 @@ void evalSerialData()
   {
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
+  else if (inStr.startsWith("NOLOG") && inStr.length() ==5)
+  {
+    nolog();
+  }
   else if (inStr.startsWith("NOREG") && inStr.length() ==5)
   {
-    noreg();  // changed by D. Haude on 18.10.2017
+    noreg();
   }
   else if (inStr.startsWith("OPEN") && inStr.length() ==4)
   {
