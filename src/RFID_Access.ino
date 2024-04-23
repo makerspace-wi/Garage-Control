@@ -36,7 +36,7 @@
   last change: 27.09.2023 by Michael Muehl
   changed: only door status activates rfid (nfc.start...), add nolog
 */
-#define Version "1.3.0" // (Test = 1.2.x ==> 1.3.1)
+#define Version "1.3.2" // (Test = 1.3.x ==> 1.3.3)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA      2  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -179,7 +179,7 @@ void setup()
 
   // initialize:
   Wire.begin();         // I2C
-   
+
   // IO MODES
   pinMode(xBeError, OUTPUT);
 
@@ -216,7 +216,7 @@ void setup()
     lcd.begin(20, 4);  // initialize the LCD
 
     nfc.begin();
-    nfc.SAMConfig();
+    nfc.SAMConfig();   // Configure board to read RFID tags
     versiondata = nfc.getFirmwareVersion();
  
     lcd.clear();
@@ -255,9 +255,17 @@ void retryPOR()
   if (getTime < porTime * 5)
   {
     Serial.print(String(IDENT) + ";POR;V" + String(Version));
-    Serial.print(";PN5"); Serial.print((versiondata>>24) & 0xFF, HEX);
-    Serial.print(";V"); Serial.print((versiondata>>16) & 0xFF, DEC);
-    Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+    if (versiondata)
+    {
+      Serial.print(";PN5"); Serial.print((versiondata>>24) & 0xFF, HEX);
+      Serial.print(";V"); Serial.print((versiondata>>16) & 0xFF, DEC);
+      Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+    }
+    else
+    {
+      Serial.println(";PN53?;V?.?");
+      lcd.setCursor(0, 3); lcd.print("No RFID: PN53? V?.? ");
+    }
     ++getTime;
     tB.setInterval(TASK_SECOND * getTime);
     lcd.setCursor(0, 0); lcd.print(String(IDENT) + " ");
@@ -270,10 +278,6 @@ void retryPOR()
     tB.disable();
     displayON();
     tDS.enable();
-    if (I2CFound == 1)
-    {
-      lcd.setCursor(0, 3); lcd.print("No RFID: PN532 V1.6 ");
-    }
   }
 }
 
@@ -480,25 +484,26 @@ void DisplayOFF()
 // END OF TASKS ---------------------------------
 
 // FUNCTIONS ------------------------------------
-void nolog()
-{ // break action
-  digitalWrite(REL_open, HIGH);
-  digitalWrite(REL_close, HIGH);
-  lcd.setCursor(0, 2); lcd.print("Not logged in -     ");
-  lcd.setCursor(0, 3); lcd.print("Login at Entry Door!");
-  tM.enable();
-  BadSound();
-  but_led(1);
-  flash_led(1);
-  tDF.restartDelayed(TASK_SECOND * disLightOn);
+int getNum(String strNum) // Check if realy numbers
+{
+  strNum.trim();
+  for (byte i = 0; i < strNum.length(); i++)
+  {
+    if (!isDigit(strNum[i])) 
+    {
+      Serial.println(String(IDENT) + ";?;" + inStr + ";Num?;" + strNum);
+      lcd.setCursor(0, 2); lcd.print("no mumber           ");
+      lcd.setCursor(0, 3); lcd.print("logout and reset    ");
+      return 0;
+    }
+  }
+  return strNum.toInt();
 }
 
-void noreg()
-{ // not registed
+void noact()
+{ // no action
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
-  lcd.setCursor(0, 2); lcd.print("Tag not registered  ");
-  lcd.setCursor(0, 3); lcd.print("===> No access! <===");
   tM.enable();
   BadSound();
   but_led(1);
@@ -548,18 +553,18 @@ void but_led(int var)
 { // button led switching
   switch (var)
   {
-  case 1: // LED rt & gn off
-    lcd.pinLEDs(StopLEDrt, HIGH);
-    lcd.pinLEDs(StopLEDgn, HIGH);
-    break;
-  case 2: // RED LED on
-    lcd.pinLEDs(StopLEDrt, LOW);
-    lcd.pinLEDs(StopLEDgn, HIGH);
-    break;
-  case 3: // GREEN LED on
-    lcd.pinLEDs(StopLEDrt, HIGH);
-    lcd.pinLEDs(StopLEDgn, LOW);
-    break;
+    case 1: // LED rt & gn off
+      lcd.pinLEDs(StopLEDrt, HIGH);
+      lcd.pinLEDs(StopLEDgn, HIGH);
+      break;
+    case 2: // RED LED on
+      lcd.pinLEDs(StopLEDrt, LOW);
+      lcd.pinLEDs(StopLEDgn, HIGH);
+      break;
+    case 3: // GREEN LED on
+      lcd.pinLEDs(StopLEDrt, HIGH);
+      lcd.pinLEDs(StopLEDgn, LOW);
+      break;
   }
 }
 
@@ -586,19 +591,19 @@ void flash_led(int var)
   }
 }
 
-void BuzzerOff()
+void BuzzerOff()  // switch buzzer off
 {
   lcd.pinLEDs(buzzerPin, LOW);
   tBU.setCallback(&BuzzerOn);
 }
 
-void BuzzerOn()
+void BuzzerOn()   // switch buzzer on
 {
   lcd.pinLEDs(buzzerPin, HIGH);
   tBU.setCallback(&BuzzerOff);
 }
 
-void BadSound(void)
+void BadSound(void) // generate bad sound
 {   // added by DieterH on 22.10.2017
   tBU.setInterval(100);
   tBU.setIterations(6); // I think it must be Beeps * 2?
@@ -606,7 +611,7 @@ void BadSound(void)
   tBU.enable();
 }
 
-void GoodSound(void)
+void GoodSound(void) // generate good sound
 {
   lcd.pinLEDs(buzzerPin, HIGH);
   tBD.setCallback(&BuzzerOff);  // changed by DieterH on 18.10.2017
@@ -620,7 +625,7 @@ void dispRFID(void)
   lcd.setCursor(0, 1); lcd.print("Wait Sync xBee:");
 }
 
-void displayON()
+void displayON()  // switch display on
 {
   displayIsON = true;
   lcd.setBacklight(BACKLIGHTon);
@@ -680,11 +685,15 @@ void evalSerialData()
   }
   else if (inStr.startsWith("NOLOG") && inStr.length() ==5)
   {
-    nolog();
+    lcd.setCursor(0, 2); lcd.print("Not logged in -     ");
+    lcd.setCursor(0, 3); lcd.print("Login at Entry Door!");
+    noact();
   }
   else if (inStr.startsWith("NOREG") && inStr.length() ==5)
   {
-    noreg();
+    lcd.setCursor(0, 2); lcd.print("Tag not registered  ");
+    lcd.setCursor(0, 3); lcd.print("===> No access! <===");
+    noact();
   }
   else if (inStr.startsWith("OPEN") && inStr.length() ==4)
   {
@@ -698,7 +707,8 @@ void evalSerialData()
   }
   else if (inStr.startsWith("SETMO") && inStr.length() <9)
   { // set time during door is moving
-    MOVE = inStr.substring(5).toInt() * checkFA;
+    val = getNum(inStr.substring(5));
+    if (val > 0) MOVE = val * checkFA;
   }
   else if (inStr.startsWith("DISON"))
   { // Switch display on for disLightOn secs
@@ -719,10 +729,10 @@ void evalSerialData()
   }
   else
   {
-    Serial.println(String(IDENT) + ";?;" + inStr);
-    inStr.concat("                    ");    // add blanks to string
-    lcd.setCursor(0,2);
-    lcd.print("?:" + inStr.substring(0,18)); // cut string lenght to 20 char
+    Serial.println(String(IDENT) + ";cmd?;" + inStr);
+    lcd.setCursor(0, 2); lcd.print("Unknown command     ");
+    lcd.setCursor(0, 3); lcd.print("logout and reset    ");
+    noact();
   }
   inStr = "";
 }
