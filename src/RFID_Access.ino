@@ -28,7 +28,7 @@
   'reqst'  - request status
   'nolog'  - not loged in at entry door!
   'noreg'  - RFID-Chip not registed
-  'setmo'  - set time for moving door
+  'setmo'  - set time for moving door (xxx.x sec * checkFA)
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
@@ -36,11 +36,12 @@
   last change: 27.09.2023 by Michael Muehl
   changed: only door status activates rfid (nfc.start...), add nolog
 */
-#define Version "1.3.2" // (Test = 1.3.x ==> 1.3.3)
+#define Version "1.3.3" // (Test = 1.3.x ==> 1.3.4)
 #define xBeeName "GADO"	// machine name for xBee
-#define checkFA      2  // event check for every (1 second / FActor)
+#define checkFA     10  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
 #define repHour   3600  // [3600] seconds per hour
+#define minMove    100  // [100] minimal time for moving door (sec * checkFA)
 
 // ---------------------
 #include <Arduino.h>
@@ -355,12 +356,12 @@ void CheckEvent()
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
       if (sw_val == 1)  // garage opened =1 or closed =2
       {
-        lcd.setCursor(0, 3); lcd.print("Garage open         ");
+        lcd.setCursor(0, 3); lcd.print("Garage is open      ");
         Serial.println(String(IDENT) + ";opened");
       }
       else if (sw_val == 2)
       {
-        lcd.setCursor(0, 3); lcd.print("Garage closed       ");
+        lcd.setCursor(0, 3); lcd.print("Garage is closed    ");
         Serial.println(String(IDENT) + ";closed");
       }
       tM.enable();
@@ -514,12 +515,13 @@ void noact()
 void Opened(void)
 { // Open garage
   movDoor = true;
+  digitalWrite(REL_open, LOW);
+  digitalWrite(REL_close, HIGH);
   Serial.println(String(IDENT) + ";open");
   char tbs[8];
   sprintf(tbs, "% 3d", MOVE / checkFA);
   lcd.setCursor(0, 2); lcd.print("Garage open in  :"); lcd.print(tbs);
   lcd.setCursor(0, 3); lcd.print("Open Garage");
-  digitalWrite(REL_open, LOW);
   tMV.setCallback(MoveOPEN);
   granted();
 }
@@ -527,12 +529,13 @@ void Opened(void)
 void Closed(void)
 { // Close garage
   movDoor = false;
+  digitalWrite(REL_close, LOW);
+  digitalWrite(REL_open, HIGH);
   Serial.println(String(IDENT) + ";close");
   char tbs[8];
   sprintf(tbs, "% 3d", MOVE / checkFA);
   lcd.setCursor(0, 2); lcd.print("Garage closed in:"); lcd.print(tbs);
   lcd.setCursor(0, 3); lcd.print("Close Garage");
-  digitalWrite(REL_close, LOW);
   tMV.setCallback(MoveCLOSE);
   granted();
 }
@@ -705,10 +708,10 @@ void evalSerialData()
     but_led(3);
     Closed();
   }
-  else if (inStr.startsWith("SETMO") && inStr.length() <9)
-  { // set time during door is moving
+  else if (inStr.startsWith("SETMO") && inStr.length() <10)
+  { // set time during door is moving [sec * checkFA]
     val = getNum(inStr.substring(5));
-    if (val > 0) MOVE = val * checkFA;
+    if (val > minMove) MOVE = val;
   }
   else if (inStr.startsWith("DISON"))
   { // Switch display on for disLightOn secs
