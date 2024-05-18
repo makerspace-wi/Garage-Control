@@ -747,18 +747,15 @@ void evalSerialData()
 */
 void serialEvent()
 {
-  while (Serial.available())
+  char inChar = (char)Serial.read();
+  if (inChar == '\x0d')
   {
-    char inChar = (char)Serial.read();
-    if (inChar == '\x0d')
-    {
-      evalSerialData();
-      inStr = "";
-    }
-    else if (inChar != '\x0a')
-    {
-      inStr += inChar;
-    }
+    evalSerialData();
+    inStr = "";
+  }
+  else if (inChar != '\x0a')
+  {
+    inStr += inChar;
   }
 }
 // End Funktions Serial Input -------------------
