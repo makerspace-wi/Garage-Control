@@ -6,9 +6,9 @@
   open or close garage door
 
   Commands to Raspi --->
-  xBeeName - from xBee (=Ident) [max 4 caracter including numbers]
-  'POR'    - power on reset (Ident;por)
-  'card;nn...'    - uid_2 from reader 
+  xBeeName - from xBee (=Ident) [max 4 caracter including numbers] {xBeeName + nn}
+  'Ident;POR;Vx.x.x' - machine power on reset and sw version (Ident;por;Vx.x.x)
+  'card;nn...'       - uid_2 from reader
   
   'Status:'
   'Ident;stat;n'  - garage reporting Door-Status - 00, 01, 10, 11
@@ -33,10 +33,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 27.09.2023 by Michael Muehl
-  changed: only door status activates rfid (nfc.start...), add nolog
+  last change: 21.05.2024 by Michael Muehl
+  changed: xBeError --> xBuError, Check Garage Move with 100ms
 */
-#define Version "1.3.3" // (Test = 1.3.x ==> 1.3.4)
+#define Version "1.3.4" // (Test = 1.3.x ==> 1.3.5)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // event check for every (1 second / FActor)
 #define statusFA     4  // status every (1 second / FActor)
@@ -66,12 +66,12 @@
 #define REL_open    A2  // Relais Garage open
 #define REL_close   A3  // Relais Garage close
 
-#define xBeError     8  // xBee and Bus error (13)
+#define xBuError     8  // xBee and Bus error (13)
 
 // I2C IOPort definition
 byte I2CFound = 0;
 byte I2CTransmissionResult = 0;
-#define I2CPort   0x20  // I2C Adress MCP23017
+#define I2CPort   0x20  // I2C Adress MCP23017 (LCD Display +)
 
 // Pin Assignments Display (I2C LCD Port A/LED +Button Port B)
 // Switched to LOW
@@ -182,7 +182,7 @@ void setup()
   Wire.begin();         // I2C
 
   // IO MODES
-  pinMode(xBeError, OUTPUT);
+  pinMode(xBuError, OUTPUT);
 
   pinMode(REL_open, OUTPUT);
   pinMode(REL_close, OUTPUT);
@@ -191,7 +191,7 @@ void setup()
   pinMode(SW_close, INPUT_PULLUP);
 
   // Set default values
-  digitalWrite(xBeError, HIGH); // turn the LED ON (init start)
+  digitalWrite(xBuError, HIGH); // turn the LED ON (init start)
 
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
@@ -246,7 +246,7 @@ void checkXbee()
     ++co_ok;
     tB.setCallback(retryPOR);
     tB.enable();
-    digitalWrite(xBeError, LOW); // turn the LED off (Programm start)
+    digitalWrite(xBuError, LOW); // turn the LED off (Programm start)
   }
 }
 
@@ -405,7 +405,7 @@ void repeatMES()
 void BlinkCallback()
 {
   // --Blink if BUS Error
-  digitalWrite(xBeError, !digitalRead(xBeError));
+  digitalWrite(xBuError, !digitalRead(xBuError));
 }
 
 void FlashCallback()
@@ -637,7 +637,7 @@ void displayON()  // switch display on
 }
 // End Funktions --------------------------------
 
-// Funktions Serial Input (Event) ---------------
+// Funktions Serial Input ------- ---------------
 void evalSerialData()
 {
   inStr.toUpperCase();
@@ -673,11 +673,6 @@ void evalSerialData()
     tB.setInterval(TASK_SECOND / 2);
     getTime = 255;
   }
-  else if (inStr.startsWith("RESRE") && inStr.length() ==5)
-  {
-    digitalWrite(REL_open, HIGH);
-    digitalWrite(REL_close, HIGH);
-  }
   else if (inStr.startsWith("STATA") && inStr.length() ==5)
   {
     nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
@@ -707,6 +702,11 @@ void evalSerialData()
   {
     but_led(3);
     Closed();
+  }
+  else if (inStr.startsWith("RESRE") && inStr.length() ==5)
+  {
+    digitalWrite(REL_open, HIGH);
+    digitalWrite(REL_close, HIGH);
   }
   else if (inStr.startsWith("SETMO") && inStr.length() <10)
   { // set time during door is moving [sec * checkFA]
