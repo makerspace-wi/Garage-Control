@@ -28,18 +28,20 @@
   'reqst'  - request status
   'nolog'  - not loged in at entry door!
   'noreg'  - RFID-Chip not registed
-  'setmo'  - set time for moving door (xxx.x sec * checkFA)
+  'setmo'  - set max time for moving door (xxx.x sec * checkFA)
+  'setdu'  - set Delay for moving door Up (xx.x sec * checkFA)
+  'setdd'  - set Delay for moving door Down (xx.x sec * checkFA)
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 21.05.2024 by Michael Muehl
-  changed: xBeError --> xBuError, Check Garage Move with 100ms
+  last change: 01.06.2024 by Michael Muehl
+  changed: when switches for open or closed possition is arrived, motor was stopped after a delay  
 */
-#define Version "1.3.4" // (Test = 1.3.x ==> 1.3.5)
+#define Version "1.4.0" // (Test = 1.4.0 ==> 1.4.1)
 #define xBeeName "GADO"	// machine name for xBee
-#define checkFA     10  // event check for every (1 second / FActor)
-#define statusFA     4  // status every (1 second / FActor)
+#define checkFA     10  // [10] event check for every (1 second / FActor)
+#define statusFA     4  // [4] status every (1 second / FActor)
 #define repHour   3600  // [3600] seconds per hour
 #define minMove    100  // [100] minimal time for moving door (sec * checkFA)
 
@@ -93,7 +95,6 @@ byte I2CTransmissionResult = 0;
 #define porTime         5 // [  5] wait seconds for sending Ident + POR
 #define disLightOn     15 // [ 15] display light on for seconds
 #define MOVEGARAGE     30 // [ 30] SECONDS before activation is off
-#define intervalINC  3600 // [  .] 3600 * 4
 
 // CREATE OBJECTS
 Scheduler runner;
@@ -110,13 +111,11 @@ void BuzzerOn();         // added by DieterH on 22.10.2017
 void FlashCallback();    // Task to let LED blink - added by D. Haude 08.03.2017
 void DisplayOFF();       // Task to switch display off after time
 
+void MoveERROR();
 void doorSTA();          // Task for door STAtus
 
 // Functions define for C++
-void OnTimed(long);
 void flash_led(int);
-
-void MoveERROR();
 
 // TASKS
 Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &runner);	      // 500ms main task
@@ -157,7 +156,10 @@ uint32_t versiondata;       // Versiondata of PN5xx
 
 // Variables can be set externaly: ---
 // --- on timed, time before new activation
-unsigned int MOVE = MOVEGARAGE  * checkFA; // RAM cell for before activation is off
+unsigned int MOVE = MOVEGARAGE * checkFA; // RAM cell for time, door is moving 
+unsigned int MODEUP = checkFA;            // RAM cell MOving DElay after sw UP
+unsigned int MODEDO = checkFA;            // RAM cell MOving DElay after sw DOwn
+
 bool movDoor = false;    // bit move door [false = close]
 bool togLED = LOW;       // bit toggle LEDs on / off
 bool togMOVE = false;
@@ -314,14 +316,15 @@ void CheckEvent()
     digitalWrite(REL_close, HIGH);
     onError = true;
     lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
+    lcd.setCursor(0, 3); lcd.print("Door moved ");
     if (movDoor)
     {
-      lcd.setCursor(0, 3); lcd.print("Door moved up???    ");
+      lcd.print("up???    ");
       Serial.println(String(IDENT) + ";openbr");
     }
     else
     {
-      lcd.setCursor(0, 3); lcd.print("Door moved down?    ");
+      lcd.print("down?    ");
       Serial.println(String(IDENT) + ";closebr");
     }
     sw_last = 255;  // send status
@@ -354,14 +357,15 @@ void CheckEvent()
     if (((sw_val == 1 && movDoor) || (sw_val == 2 && !movDoor)))
     {
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
+      lcd.setCursor(0, 3); lcd.print("Garage is ");
       if (sw_val == 1)  // garage opened =1 or closed =2
       {
-        lcd.setCursor(0, 3); lcd.print("Garage is open      ");
+        lcd.print("open      ");
         Serial.println(String(IDENT) + ";opened");
       }
       else if (sw_val == 2)
       {
-        lcd.setCursor(0, 3); lcd.print("Garage is closed    ");
+        lcd.print("closed    ");
         Serial.println(String(IDENT) + ";closed");
       }
       tM.enable();
@@ -369,14 +373,15 @@ void CheckEvent()
     else
     {
       lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
+      lcd.setCursor(0, 3); lcd.print("Garage ");
       if (movDoor)
       {
-        lcd.setCursor(0, 3); lcd.print("Garage open??       ");
+        lcd.print("open??       ");
         Serial.println(String(IDENT) + ";open??");
       }
       else
       {
-        lcd.setCursor(0, 3); lcd.print("Garage closed??     ");
+        lcd.print("closed??     ");
         Serial.println(String(IDENT) + ";close??");
       }
       onError = true;
@@ -419,6 +424,8 @@ void doorSTA()
   bitWrite(sw_val, 1, digitalRead(SW_close));
   if (sw_val != sw_last )
   {
+    if (sw_last ==3 && sw_val == 1) timer = MODEUP; // delay open
+    if (sw_last ==3 && sw_val == 2) timer = MODEDO; // delay close
     sw_last = sw_val;
     staCount = 0;
   }
@@ -631,9 +638,10 @@ void dispRFID(void)
 void displayON()  // switch display on
 {
   displayIsON = true;
-  lcd.setBacklight(BACKLIGHTon);
   tM.enable();
   intervalRFID = 0;
+  lcd.setBacklight(BACKLIGHTon);
+  tDF.restartDelayed(TASK_SECOND * disLightOn);
 }
 // End Funktions --------------------------------
 
@@ -673,10 +681,6 @@ void evalSerialData()
     tB.setInterval(TASK_SECOND / 2);
     getTime = 255;
   }
-  else if (inStr.startsWith("STATA") && inStr.length() ==5)
-  {
-    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
-  }
   else if (inStr.startsWith("REQST") && inStr.length() ==2)
   {
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
@@ -708,15 +712,24 @@ void evalSerialData()
     digitalWrite(REL_open, HIGH);
     digitalWrite(REL_close, HIGH);
   }
-  else if (inStr.startsWith("SETMO") && inStr.length() <10)
+  else if (inStr.startsWith("SETMO") && inStr.length() <9)
   { // set time during door is moving [sec * checkFA]
     val = getNum(inStr.substring(5));
     if (val > minMove) MOVE = val;
   }
+  else if (inStr.startsWith("SETDU") && inStr.length() <8)
+  { // set delay time for door moving up [sec * checkFA]
+    val = getNum(inStr.substring(5));
+    if (val > 0) MODEUP = val;
+  }
+  else if (inStr.startsWith("SETDD") && inStr.length() <8)
+  { // set delay time for door moving down [sec * checkFA]
+    val = getNum(inStr.substring(5));
+    if (val > 0) MODEDO = val;
+  }
   else if (inStr.startsWith("DISON"))
   { // Switch display on for disLightOn secs
     displayON();
-    tDF.restartDelayed(TASK_SECOND * disLightOn);
   }
   else if (inStr.substring(0, 3) == "R3T" && inStr.length() >3)
   {  // print to LCD row 3
