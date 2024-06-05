@@ -35,13 +35,13 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 01.06.2024 by Michael Muehl
-  changed: when switches for open or closed possition is arrived, motor was stopped after a delay  
+  last change: 04.06.2024 by Michael Muehl
+  changed: change request if switch position is arrived
 */
-#define Version "1.4.0" // (Test = 1.4.0 ==> 1.4.1)
+#define Version "1.4.1" // (Test = 1.4.1 ==> 1.4.2)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event check for every (1 second / FActor)
-#define statusFA     4  // [4] status every (1 second / FActor)
+#define statusFA     5  // [4] status every (1 second / FActor)
 #define repHour   3600  // [3600] seconds per hour
 #define minMove    100  // [100] minimal time for moving door (sec * checkFA)
 
@@ -424,8 +424,8 @@ void doorSTA()
   bitWrite(sw_val, 1, digitalRead(SW_close));
   if (sw_val != sw_last )
   {
-    if (sw_last ==3 && sw_val == 1) timer = MODEUP; // delay open
-    if (sw_last ==3 && sw_val == 2) timer = MODEDO; // delay close
+    if (sw_val == 1 && movDoor) timer = MODEUP; // delay open
+    if (sw_val == 2 && !movDoor) timer = MODEDO; // delay close
     sw_last = sw_val;
     staCount = 0;
   }
