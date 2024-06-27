@@ -38,10 +38,10 @@
   last change: 04.06.2024 by Michael Muehl
   changed: change request if switch position is arrived
 */
-#define Version "1.4.1" // (Test = 1.4.1 ==> 1.4.2)
+#define Version "1.4.2" // (Test = 1.4.2 ==> 1.4.3)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event check for every (1 second / FActor)
-#define statusFA     5  // [4] status every (1 second / FActor)
+#define dostaFA     16  // [16] door status for every (1 second / FActor)
 #define repHour   3600  // [3600] seconds per hour
 #define minMove    100  // [100] minimal time for moving door (sec * checkFA)
 
@@ -128,7 +128,7 @@ Task tBD(1, TASK_ONCE, &FlashCallback, &runner);                    // Flash Del
 Task tDF(1, TASK_ONCE, &DisplayOFF, &runner);                       // display off
 
 Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &runner);       // 250ms for Garage move display
-Task tDS(TASK_SECOND / statusFA, TASK_FOREVER, &doorSTA, &runner);  // 1000ms / statusFActor
+Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &runner);   // 1000ms / dostaFActor
 
 // VARIABLES
 uint8_t success;                          // RFID
@@ -432,7 +432,7 @@ void doorSTA()
   if (staCount == 0)
   {
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
-    staCount = repHour * statusFA;
+    staCount = repHour * dostaFA;
     nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
   }
   --staCount;
