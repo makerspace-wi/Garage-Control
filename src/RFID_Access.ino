@@ -41,7 +41,7 @@
 #define Version "1.4.2" // (Test = 1.4.2 ==> 1.4.3)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event check for every (1 second / FActor)
-#define dostaFA     16  // [16] door status for every (1 second / FActor)
+#define dostaFA     20  // [20] door status for every (1 second / FActor)
 #define repHour   3600  // [3600] seconds per hour
 #define minMove    100  // [100] minimal time for moving door (sec * checkFA)
 
