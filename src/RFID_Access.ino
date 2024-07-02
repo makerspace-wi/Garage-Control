@@ -35,8 +35,8 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 04.06.2024 by Michael Muehl
-  changed: change request if switch position is arrived
+  last change: 02.07.2024 by Michael Muehl
+  changed: door status check speed
 */
 #define Version "1.4.2" // (Test = 1.4.2 ==> 1.4.3)
 #define xBeeName "GADO"	// machine name for xBee
