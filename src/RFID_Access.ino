@@ -35,15 +35,15 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 02.07.2024 by Michael Muehl
-  changed: door status check speed
+  last change: 04.07.2024 by Michael Muehl
+  changed: change variable to long
 */
-#define Version "1.4.2" // (Test = 1.4.2 ==> 1.4.3)
+#define Version "1.4.3" // (Test = 1.4.3 ==> 1.4.4)
 #define xBeeName "GADO"	// machine name for xBee
-#define checkFA     10  // [10] event check for every (1 second / FActor)
-#define dostaFA     20  // [20] door status for every (1 second / FActor)
-#define repHour   3600  // [3600] seconds per hour
-#define minMove    100  // [100] minimal time for moving door (sec * checkFA)
+#define checkFA   10    // [10] event check for every (1 second / FActor)
+#define dostaFA   20    // [20] door status for every (1 second / FActor)
+#define repHour 3600uL  // [3600uL] seconds per hour (unsigned long)
+#define minMove  100    // [100] minimal time for moving door (sec * checkFA)
 
 // ---------------------
 #include <Arduino.h>
@@ -111,7 +111,7 @@ void BuzzerOn();         // added by DieterH on 22.10.2017
 void FlashCallback();    // Task to let LED blink - added by D. Haude 08.03.2017
 void DisplayOFF();       // Task to switch display off after time
 
-void MoveERROR();
+void MoveERROR();        // Task for Error during movement
 void doorSTA();          // Task for door STAtus
 
 // Functions define for C++
@@ -163,7 +163,7 @@ unsigned int MODEDO = checkFA;            // RAM cell MOving DElay after sw DOwn
 bool movDoor = false;    // bit move door [false = close]
 bool togLED = LOW;       // bit toggle LEDs on / off
 bool togMOVE = false;
-unsigned int staCount = 0;   // counter to send status ervery hour
+unsigned long staCount = 0uL; // counter to send status ervery hour
 
 // Serial with xBee
 String inStr = "";      // a string to hold incoming data
