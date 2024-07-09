@@ -35,10 +35,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 04.07.2024 by Michael Muehl
-  changed: change variable to long
+  last change: 09.07.2024 by Michael Muehl
+  changed: add variable sw_open and sw_close to suppress bouncing
 */
-#define Version "1.4.3" // (Test = 1.4.3 ==> 1.4.4)
+#define Version "1.4.4" // (Test = 1.4.3 ==> 1.4.5)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA   10    // [10] event check for every (1 second / FActor)
 #define dostaFA   20    // [20] door status for every (1 second / FActor)
@@ -47,7 +47,9 @@
 
 // ---------------------
 #include <Arduino.h>
+
 #include <TaskScheduler.h>
+
 #include <Wire.h>
 #include <LCDLED_BreakOUT.h>
 #include <utility/Adafruit_MCP23017.h>
@@ -97,7 +99,7 @@ byte I2CTransmissionResult = 0;
 #define MOVEGARAGE     30 // [ 30] SECONDS before activation is off
 
 // CREATE OBJECTS
-Scheduler runner;
+Scheduler r;
 LCDLED_BreakOUT lcd = LCDLED_BreakOUT();
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
@@ -118,17 +120,17 @@ void doorSTA();          // Task for door STAtus
 void flash_led(int);
 
 // TASKS
-Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &runner);	      // 500ms main task
-Task tR(TASK_SECOND / 2, 0, &repeatMES, &runner);                   // 500ms * repMES repeat messages
-Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &runner); // 1000ms / checkFActor
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback, &runner);    // 5000ms blinking
+Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &r);	       // 500ms main task
+Task tR(TASK_SECOND / 2, 0, &repeatMES, &r);                   // 500ms * repMES repeat messages
+Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &r); // 1000ms / checkFActor
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback, &r);    // 5000ms blinking
 
-Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &runner);                  // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
-Task tBD(1, TASK_ONCE, &FlashCallback, &runner);                    // Flash Delay
-Task tDF(1, TASK_ONCE, &DisplayOFF, &runner);                       // display off
+Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &r);                  // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
+Task tBD(1, TASK_ONCE, &FlashCallback, &r);                    // Flash Delay
+Task tDF(1, TASK_ONCE, &DisplayOFF, &r);                       // display off
 
-Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &runner);       // 250ms for Garage move display
-Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &runner);   // 1000ms / dostaFActor
+Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &r);       // 250ms for Garage move display
+Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &r);   // 1000ms / dostaFActor
 
 // VARIABLES
 uint8_t success;                          // RFID
@@ -149,6 +151,8 @@ bool displayIsON = false;   // if display is switched on = true
 
 byte sw_val = 0;            // garage switch value (open / closed)
 byte sw_last = 255;         // garage switch value last time
+byte sw_open = 0;           // garage switch open reached = true
+byte sw_close = 0;          // garage switch open reached = true
 
 unsigned int pushCount = 0; // counter how long push button in action
 
@@ -160,8 +164,8 @@ unsigned int MOVE = MOVEGARAGE * checkFA; // RAM cell for time, door is moving
 unsigned int MODEUP = checkFA;            // RAM cell MOving DElay after sw UP
 unsigned int MODEDO = checkFA;            // RAM cell MOving DElay after sw DOwn
 
-bool movDoor = false;    // bit move door [false = close]
-bool togLED = LOW;       // bit toggle LEDs on / off
+bool movDoor = false;   // bit move door [false = closed]
+bool togLED = LOW;      // bit toggle LEDs on / off
 bool togMOVE = false;
 unsigned long staCount = 0uL; // counter to send status ervery hour
 
@@ -198,7 +202,7 @@ void setup()
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
 
-  runner.startNow();
+  r.startNow();
 
   // I2C _ Ports definition only for test if I2C is avilable
   Wire.beginTransmission(I2CPort);
@@ -214,7 +218,7 @@ void setup()
   {
     I2CFound++;
   }
-  if (I2CFound >= 1)   // min display available
+  if (I2CFound >= 1)   //[1] min display available
   {
     lcd.begin(20, 4);  // initialize the LCD
 
@@ -354,16 +358,16 @@ void CheckEvent()
 
   if (timer ==  0)
   {
-    if (((sw_val == 1 && movDoor) || (sw_val == 2 && !movDoor)))
+    if (((sw_open && movDoor) || (sw_close && !movDoor)))
     {
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
       lcd.setCursor(0, 3); lcd.print("Garage is ");
-      if (sw_val == 1)  // garage opened =1 or closed =2
+      if (sw_open)  // garage opened =1 or closed =2
       {
         lcd.print("open      ");
         Serial.println(String(IDENT) + ";opened");
       }
-      else if (sw_val == 2)
+      if (sw_close)
       {
         lcd.print("closed    ");
         Serial.println(String(IDENT) + ";closed");
@@ -424,8 +428,16 @@ void doorSTA()
   bitWrite(sw_val, 1, digitalRead(SW_close));
   if (sw_val != sw_last )
   {
-    if (sw_val == 1 && movDoor) timer = MODEUP; // delay open
-    if (sw_val == 2 && !movDoor) timer = MODEDO; // delay close
+    if (sw_val == 1 && movDoor) 
+    {
+      timer = MODEUP; // delay open
+      sw_open = true;
+    }
+    if (sw_val == 2 && !movDoor)
+    {
+      timer = MODEDO; // delay close
+      sw_close = true;
+    }
     sw_last = sw_val;
     staCount = 0;
   }
@@ -522,6 +534,7 @@ void noact()
 void Opened(void)
 { // Open garage
   movDoor = true;
+  sw_open = false;
   digitalWrite(REL_open, LOW);
   digitalWrite(REL_close, HIGH);
   Serial.println(String(IDENT) + ";open");
@@ -536,6 +549,7 @@ void Opened(void)
 void Closed(void)
 { // Close garage
   movDoor = false;
+  sw_close = false;
   digitalWrite(REL_close, LOW);
   digitalWrite(REL_open, HIGH);
   Serial.println(String(IDENT) + ";close");
@@ -752,28 +766,23 @@ void evalSerialData()
   }
   inStr = "";
 }
-
-/* SerialEvent occurs whenever a new data comes in the
-  hardware serial RX.  This routine is run between each
-  time loop() runs, so using delay inside loop can delay
-  response.  Multiple bytes of data may be available.
-*/
-void serialEvent()
-{
-  char inChar = (char)Serial.read();
-  if (inChar == '\x0d')
-  {
-    evalSerialData();
-    inStr = "";
-  }
-  else if (inChar != '\x0a')
-  {
-    inStr += inChar;
-  }
-}
 // End Funktions Serial Input -------------------
 
 // PROGRAM LOOP AREA ----------------------------
-void loop() {
-  runner.execute();
+void loop()
+{
+  r.execute();
+  if (Serial.available() > 0)
+  {
+    char inChar = (char)Serial.read();
+    if (inChar == '\x0d')
+    {
+      evalSerialData();
+      inStr = "";
+    }
+    else if (inChar != '\x0a')
+    {
+      inStr += inChar;
+    }
+  }
 }
