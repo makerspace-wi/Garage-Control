@@ -35,10 +35,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 09.07.2024 by Michael Muehl
+  last change: 10.07.2024 by Michael Muehl
   changed: add variable sw_open and sw_close to suppress bouncing
 */
-#define Version "1.4.4" // (Test = 1.4.3 ==> 1.4.5)
+#define Version "1.4.4" // (Test = 1.4.4 ==> 1.4.5)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA   10    // [10] event check for every (1 second / FActor)
 #define dostaFA   20    // [20] door status for every (1 second / FActor)
@@ -534,7 +534,8 @@ void noact()
 void Opened(void)
 { // Open garage
   movDoor = true;
-  sw_open = false;
+  sw_open = false;  // reset old positions
+  sw_close = false;
   digitalWrite(REL_open, LOW);
   digitalWrite(REL_close, HIGH);
   Serial.println(String(IDENT) + ";open");
@@ -549,7 +550,8 @@ void Opened(void)
 void Closed(void)
 { // Close garage
   movDoor = false;
-  sw_close = false;
+  sw_close = false; // reset old positions
+  sw_open = false;
   digitalWrite(REL_close, LOW);
   digitalWrite(REL_open, HIGH);
   Serial.println(String(IDENT) + ";close");
