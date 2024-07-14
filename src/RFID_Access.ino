@@ -28,9 +28,9 @@
   'reqst'  - request status
   'nolog'  - not loged in at entry door!
   'noreg'  - RFID-Chip not registed
-  'setmo'  - set max time for moving door (xxx.x sec * checkFA)
-  'setdu'  - set Delay for moving door Up (xx.x sec * checkFA)
-  'setdd'  - set Delay for moving door Down (xx.x sec * checkFA)
+  'setmo'  - set max time for moving door (xxx.x sec * checkFA)  {>minMove}
+  'setdu'  - set Delay for moving door Up (xx.x sec * checkFA)   {>0}
+  'setdd'  - set Delay for moving door Down (xx.x sec * checkFA) {>0}
   'dison'  - display on for 60 setCursor
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
@@ -40,10 +40,10 @@
 */
 #define Version "1.4.4" // (Test = 1.4.4 ==> 1.4.5)
 #define xBeeName "GADO"	// machine name for xBee
-#define checkFA   10    // [10] event check for every (1 second / FActor)
-#define dostaFA   20    // [20] door status for every (1 second / FActor)
-#define repHour 3600uL  // [3600uL] seconds per hour (unsigned long)
-#define minMove  100    // [100] minimal time for moving door (sec * checkFA)
+#define checkFA     10  // [10] event CHECK for every (1 second / FActor)
+#define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
+#define minMove    100  // [100] minimal time for moving door (xx.x sec * checkFA)
+#define disLightOn  15  // [15] display light on for seconds
 
 // ---------------------
 #include <Arduino.h>
@@ -94,9 +94,9 @@ byte I2CTransmissionResult = 0;
 #define BACKLIGHTon  0x1
 
 // DEFINES
-#define porTime         5 // [  5] wait seconds for sending Ident + POR
-#define disLightOn     15 // [ 15] display light on for seconds
-#define MOVEGARAGE     30 // [ 30] SECONDS before activation is off
+#define porTime       5   // [  5] wait seconds for sending Ident + POR
+#define MOVEGARAGE   30   // [ 30] SECONDS before activation is off
+#define repHour    3600uL // [3600uL] seconds per hour (unsigned long)
 
 // CREATE OBJECTS
 Scheduler r;
