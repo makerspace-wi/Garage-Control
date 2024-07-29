@@ -35,10 +35,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 10.07.2024 by Michael Muehl
-  changed: add variable sw_open and sw_close to suppress bouncing
+  last change: 25.07.2024 by Michael Muehl
+  changed: changed movDoor to byte and use numbers for action
 */
-#define Version "1.4.4" // (Test = 1.4.4 ==> 1.4.5)
+#define Version "1.4.5" // (Test = 1.4.5 ==> 1.4.6)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -71,6 +71,7 @@
 #define REL_close   A3  // Relais Garage close
 
 #define xBuError     8  // xBee and Bus error (13)
+#define wdtoggle     9  // watch dog toggle or test pin
 
 // I2C IOPort definition
 byte I2CFound = 0;
@@ -151,8 +152,6 @@ bool displayIsON = false;   // if display is switched on = true
 
 byte sw_val = 0;            // garage switch value (open / closed)
 byte sw_last = 255;         // garage switch value last time
-byte sw_open = 0;           // garage switch open reached = true
-byte sw_close = 0;          // garage switch open reached = true
 
 unsigned int pushCount = 0; // counter how long push button in action
 
@@ -164,7 +163,7 @@ unsigned int MOVE = MOVEGARAGE * checkFA; // RAM cell for time, door is moving
 unsigned int MODEUP = checkFA;            // RAM cell MOving DElay after sw UP
 unsigned int MODEDO = checkFA;            // RAM cell MOving DElay after sw DOwn
 
-bool movDoor = false;   // bit move door [false = closed]
+byte movDoor = 0;       // byte move door [>0]
 bool togLED = LOW;      // bit toggle LEDs on / off
 bool togMOVE = false;
 unsigned long staCount = 0uL; // counter to send status ervery hour
@@ -197,7 +196,8 @@ void setup()
   pinMode(SW_close, INPUT_PULLUP);
 
   // Set default values
-  digitalWrite(xBuError, HIGH); // turn the LED ON (init start)
+  digitalWrite(xBuError, HIGH); // turn the LED ON
+  digitalWrite(wdtoggle, LOW);  // turn wdtoogle off
 
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
@@ -321,12 +321,12 @@ void CheckEvent()
     onError = true;
     lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
     lcd.setCursor(0, 3); lcd.print("Door moved ");
-    if (movDoor)
+    if (movDoor == 1)
     {
       lcd.print("up???    ");
       Serial.println(String(IDENT) + ";openbr");
     }
-    else
+    else if  (movDoor == 2)
     {
       lcd.print("down?    ");
       Serial.println(String(IDENT) + ";closebr");
@@ -358,16 +358,16 @@ void CheckEvent()
 
   if (timer ==  0)
   {
-    if (((sw_open && movDoor) || (sw_close && !movDoor)))
+    if ((movDoor == 11) || (movDoor == 22))
     {
       lcd.setCursor(0, 2); lcd.print("Action finished     ");
       lcd.setCursor(0, 3); lcd.print("Garage is ");
-      if (sw_open)  // garage opened =1 or closed =2
+      if (movDoor == 11)      // garage open
       {
         lcd.print("open      ");
         Serial.println(String(IDENT) + ";opened");
       }
-      if (sw_close)
+      else if (movDoor == 22) // garage close
       {
         lcd.print("closed    ");
         Serial.println(String(IDENT) + ";closed");
@@ -378,18 +378,19 @@ void CheckEvent()
     {
       lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
       lcd.setCursor(0, 3); lcd.print("Garage ");
-      if (movDoor)
+      if (movDoor == 1)
       {
         lcd.print("open??       ");
         Serial.println(String(IDENT) + ";open??");
       }
-      else
+      else if (movDoor == 2)
       {
         lcd.print("closed??     ");
         Serial.println(String(IDENT) + ";close??");
       }
       onError = true;
     }
+    movDoor = 0;
   }
 
   if (onError)
@@ -415,6 +416,7 @@ void BlinkCallback()
 {
   // --Blink if BUS Error
   digitalWrite(xBuError, !digitalRead(xBuError));
+  digitalWrite(wdtoggle, !digitalRead(wdtoggle));
 }
 
 void FlashCallback()
@@ -426,28 +428,29 @@ void doorSTA()
 {
   bitWrite(sw_val, 0, digitalRead(SW_open));
   bitWrite(sw_val, 1, digitalRead(SW_close));
-  if (sw_val != sw_last )
+  if (sw_val != sw_last)
   {
-    if (sw_val == 1 && movDoor) 
+    if (sw_val == 1 && movDoor == 1) 
     {
       timer = MODEUP; // delay open
-      sw_open = true;
+      movDoor = 11;
     }
-    if (sw_val == 2 && !movDoor)
+    if (sw_val == 2 && movDoor ==2)
     {
       timer = MODEDO; // delay close
-      sw_close = true;
+      movDoor = 22;
     }
     sw_last = sw_val;
     staCount = 0;
   }
   if (staCount == 0)
   {
-    Serial.println(String(IDENT) + ";stat;" + String(sw_val));
     staCount = repHour * dostaFA;
     nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
+    Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
   --staCount;
+  digitalWrite(wdtoggle, !digitalRead(wdtoggle));
 }
 
 void MoveERROR()
@@ -533,9 +536,7 @@ void noact()
 
 void Opened(void)
 { // Open garage
-  movDoor = true;
-  sw_open = false;  // reset old positions
-  sw_close = false;
+  movDoor = 1;
   digitalWrite(REL_open, LOW);
   digitalWrite(REL_close, HIGH);
   Serial.println(String(IDENT) + ";open");
@@ -549,9 +550,7 @@ void Opened(void)
 
 void Closed(void)
 { // Close garage
-  movDoor = false;
-  sw_close = false; // reset old positions
-  sw_open = false;
+  movDoor = 2;
   digitalWrite(REL_close, LOW);
   digitalWrite(REL_open, HIGH);
   Serial.println(String(IDENT) + ";close");
