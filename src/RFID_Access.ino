@@ -35,10 +35,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 25.07.2024 by Michael Muehl
-  changed: changed movDoor to byte and use numbers for action
+  last change: 05.08.2024 by Michael Muehl
+  changed: expand RAM size by macro F(), using text in ROM for lcd
 */
-#define Version "1.4.5" // (Test = 1.4.5 ==> 1.4.6)
+#define Version "1.4.6" // (Test = 1.4.6 ==> 1.4.7)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -271,7 +271,7 @@ void retryPOR()
     else
     {
       Serial.println(";PN53?;V?.?");
-      lcd.setCursor(0, 3); lcd.print("No RFID: PN53? V?.? ");
+      lcd.setCursor(0, 3); lcd.print(F("No RFID: PN53? V?.? "));
     }
     ++getTime;
     tB.setInterval(TASK_SECOND * getTime);
@@ -296,6 +296,7 @@ void checkRFID()  // wait until rfid token is recognized
     // Serial.println("nfc;" + String(success));
     if (success)
     {
+      lcd.clear();
       flash_led(4);
       code = 0;
       for (byte i = 0; i < uidLength; i++)
@@ -303,8 +304,6 @@ void checkRFID()  // wait until rfid token is recognized
         code = ((code + uid[i]) * 10);
       }
       Serial.println("card;" + String(code));
-      // Display changes
-      lcd.setCursor(5, 0); lcd.print("               ");
       lcd.setCursor(0, 0); lcd.print("Card# "); lcd.print(code);
       displayON();
     }
@@ -319,16 +318,16 @@ void CheckEvent()
     digitalWrite(REL_open, HIGH);
     digitalWrite(REL_close, HIGH);
     onError = true;
-    lcd.setCursor(0, 2); lcd.print("Stop occurs!!!      ");
-    lcd.setCursor(0, 3); lcd.print("Door moved ");
+    lcd.setCursor(0, 2); lcd.print(F("Stop occurs!!!      "));
+    lcd.setCursor(0, 3); lcd.print(F("Door moved "));
     if (movDoor == 1)
     {
-      lcd.print("up???    ");
+      lcd.print(F("up???    "));
       Serial.println(String(IDENT) + ";openbr");
     }
     else if  (movDoor == 2)
     {
-      lcd.print("down?    ");
+      lcd.print(F("down?    "));
       Serial.println(String(IDENT) + ";closebr");
     }
     sw_last = 255;  // send status
@@ -360,32 +359,32 @@ void CheckEvent()
   {
     if ((movDoor == 11) || (movDoor == 22))
     {
-      lcd.setCursor(0, 2); lcd.print("Action finished     ");
-      lcd.setCursor(0, 3); lcd.print("Garage is ");
+      lcd.setCursor(0, 2); lcd.print(F("Action finished     "));
+      lcd.setCursor(0, 3); lcd.print(F("Garage is "));
       if (movDoor == 11)      // garage open
       {
-        lcd.print("open      ");
+        lcd.print(F("open      "));
         Serial.println(String(IDENT) + ";opened");
       }
       else if (movDoor == 22) // garage close
       {
-        lcd.print("closed    ");
+        lcd.print(F("closed    "));
         Serial.println(String(IDENT) + ";closed");
       }
       tM.enable();
     }
     else
     {
-      lcd.setCursor(0, 2); lcd.print("Error occurs? Time 0");
-      lcd.setCursor(0, 3); lcd.print("Garage ");
+      lcd.setCursor(0, 2); lcd.print(F("Error occurs? Time 0"));
+      lcd.setCursor(0, 3); lcd.print(F("Garage "));
       if (movDoor == 1)
       {
-        lcd.print("open??       ");
+        lcd.print(F("open??       "));
         Serial.println(String(IDENT) + ";open??");
       }
       else if (movDoor == 2)
       {
-        lcd.print("closed??     ");
+        lcd.print(F("closed??     "));
         Serial.println(String(IDENT) + ";close??");
       }
       onError = true;
@@ -450,7 +449,7 @@ void doorSTA()
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
   --staCount;
-  digitalWrite(wdtoggle, !digitalRead(wdtoggle));
+  //digitalWrite(wdtoggle, !digitalRead(wdtoggle));
 }
 
 void MoveERROR()
@@ -515,8 +514,8 @@ int getNum(String strNum) // Check if realy numbers
     if (!isDigit(strNum[i])) 
     {
       Serial.println(String(IDENT) + ";?;" + inStr + ";Num?;" + strNum);
-      lcd.setCursor(0, 2); lcd.print("no mumber           ");
-      lcd.setCursor(0, 3); lcd.print("logout and reset    ");
+      lcd.setCursor(0, 2); lcd.print(F("no mumber           "));
+      lcd.setCursor(0, 3); lcd.print(F("logout and reset    "));
       return 0;
     }
   }
@@ -543,7 +542,7 @@ void Opened(void)
   char tbs[8];
   sprintf(tbs, "% 3d", MOVE / checkFA);
   lcd.setCursor(0, 2); lcd.print("Garage open in  :"); lcd.print(tbs);
-  lcd.setCursor(0, 3); lcd.print("Open Garage");
+  lcd.setCursor(0, 3); lcd.print(F("Open Garage         "));
   tMV.setCallback(MoveOPEN);
   granted();
 }
@@ -557,7 +556,7 @@ void Closed(void)
   char tbs[8];
   sprintf(tbs, "% 3d", MOVE / checkFA);
   lcd.setCursor(0, 2); lcd.print("Garage closed in:"); lcd.print(tbs);
-  lcd.setCursor(0, 3); lcd.print("Close Garage");
+  lcd.setCursor(0, 3); lcd.print(F("Close Garage        "));
   tMV.setCallback(MoveCLOSE);
   granted();
 }
@@ -702,14 +701,14 @@ void evalSerialData()
   }
   else if (inStr.startsWith("NOLOG") && inStr.length() ==5)
   {
-    lcd.setCursor(0, 2); lcd.print("Not logged in -     ");
-    lcd.setCursor(0, 3); lcd.print("Login at Entry Door!");
+    lcd.setCursor(0, 2); lcd.print(F("Not logged in -     "));
+    lcd.setCursor(0, 3); lcd.print(F("Login at Entry Door!"));
     noact();
   }
   else if (inStr.startsWith("NOREG") && inStr.length() ==5)
   {
-    lcd.setCursor(0, 2); lcd.print("Tag not registered  ");
-    lcd.setCursor(0, 3); lcd.print("===> No access! <===");
+    lcd.setCursor(0, 2); lcd.print(F("Tag not registered  "));
+    lcd.setCursor(0, 3); lcd.print(F("===> No access! <==="));
     noact();
   }
   else if (inStr.startsWith("OPEN") && inStr.length() ==4)
@@ -761,8 +760,8 @@ void evalSerialData()
   else
   {
     Serial.println(String(IDENT) + ";cmd?;" + inStr);
-    lcd.setCursor(0, 2); lcd.print("Unknown command     ");
-    lcd.setCursor(0, 3); lcd.print("logout and reset    ");
+    lcd.setCursor(0, 2); lcd.print(F("Unknown command     "));
+    lcd.setCursor(0, 3); lcd.print(F("logout and reset    "));
     noact();
   }
   inStr = "";
