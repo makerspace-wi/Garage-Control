@@ -695,7 +695,7 @@ void evalSerialData()
     tB.setInterval(TASK_SECOND / 2);
     getTime = 255;
   }
-  else if (inStr.startsWith("REQST") && inStr.length() ==2)
+  else if (inStr.startsWith("REQST") && inStr.length() ==5)
   {
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
