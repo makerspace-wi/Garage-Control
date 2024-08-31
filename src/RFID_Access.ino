@@ -24,7 +24,6 @@
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
   'resre'  - reset relais = all open
-  'stata'  - start target PN532
   'reqst'  - request status
   'nolog'  - not loged in at entry door!
   'noreg'  - RFID-Chip not registed
