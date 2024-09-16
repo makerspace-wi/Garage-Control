@@ -37,7 +37,7 @@
   last change: 05.08.2024 by Michael Muehl
   changed: expand RAM size by macro F(), using text in ROM for lcd
 */
-#define Version "1.4.6" // (Test = 1.4.6 ==> 1.4.7)
+#define Version "1.4.7" // (Test = 1.4.6 ==> 1.4.8)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -70,7 +70,7 @@
 #define REL_close   A3  // Relais Garage close
 
 #define xBuError     8  // xBee and Bus error (13)
-#define wdtoggle     9  // watch dog toggle or test pin
+#define PULS_WDT     9  // watch dog pulse
 
 // I2C IOPort definition
 byte I2CFound = 0;
@@ -133,11 +133,17 @@ Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &r);       // 250ms for Gara
 Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &r);   // 1000ms / dostaFActor
 
 // VARIABLES
+// external watch dog
+byte wdTimeL = 1; // value * (Task tRFR(TASK_SECOND / 2)
+byte wdTimeH = 1; // value * (Task tRFR(TASK_SECOND / 2)
+byte wdCount = 0; // counter for watch dog
+
 uint8_t success;                          // RFID
 uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
 uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
 
 bool onError = false;
+bool rfidCheck = false;
 bool oneTime = false;
 bool toggle = false;
 unsigned long val;
@@ -187,6 +193,7 @@ void setup()
 
   // IO MODES
   pinMode(xBuError, OUTPUT);
+  pinMode(PULS_WDT, OUTPUT);
 
   pinMode(REL_open, OUTPUT);
   pinMode(REL_close, OUTPUT);
@@ -196,7 +203,7 @@ void setup()
 
   // Set default values
   digitalWrite(xBuError, HIGH); // turn the LED ON
-  digitalWrite(wdtoggle, LOW);  // turn wdtoogle off
+  digitalWrite(PULS_WDT, LOW);  // turn wdtoogle off
 
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
@@ -283,17 +290,26 @@ void retryPOR()
     tM.enable();
     tB.disable();
     displayON();
-    tDS.enable();
+    rfidCheck = true;
+    tDS.enable(); // start task for sending status
   }
 }
 
 void checkRFID()  // wait until rfid token is recognized
 { // 500ms Tick
+  // signal for watch dog timer -------
+  if (wdCount == wdTimeL) digitalWrite(PULS_WDT, HIGH);
+  if (wdCount == (wdTimeL + wdTimeH) && digitalRead(PULS_WDT))
+  {
+    digitalWrite(PULS_WDT, LOW);
+    wdCount = 0;
+  }
+  // check RFID -----------------------
   if (!digitalRead(PN532_IRQ)) 
   {
     success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);  // read RFID
     // Serial.println("nfc;" + String(success));
-    if (success)
+    if (success && rfidCheck == true)
     {
       lcd.clear();
       flash_led(4);
@@ -307,6 +323,7 @@ void checkRFID()  // wait until rfid token is recognized
       displayON();
     }
   }
+  ++wdCount;
 }
 
 void CheckEvent()
@@ -370,8 +387,7 @@ void CheckEvent()
         lcd.print(F("closed    "));
         Serial.println(String(IDENT) + ";closed");
       }
-      tM.enable();
-    }
+   }
     else
     {
       lcd.setCursor(0, 2); lcd.print(F("Error occurs? Time 0"));
@@ -414,7 +430,7 @@ void BlinkCallback()
 {
   // --Blink if BUS Error
   digitalWrite(xBuError, !digitalRead(xBuError));
-  digitalWrite(wdtoggle, !digitalRead(wdtoggle));
+  digitalWrite(PULS_WDT, !digitalRead(PULS_WDT));
 }
 
 void FlashCallback()
@@ -448,7 +464,6 @@ void doorSTA()
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
   --staCount;
-  //digitalWrite(wdtoggle, !digitalRead(wdtoggle));
 }
 
 void MoveERROR()
@@ -495,12 +510,12 @@ void DisplayOFF()
   displayIsON = false;
   tU.disable();
   tMV.disable();
-  tM.enable();
   lcd.setBacklight(BACKLIGHToff);
   lcd.clear();
   but_led(1);
   flash_led(1);
   sw_last = 255;  // send status
+  rfidCheck = true;
 }
 // END OF TASKS ---------------------------------
 
@@ -525,7 +540,7 @@ void noact()
 { // no action
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
-  tM.enable();
+  rfidCheck = true;
   BadSound();
   but_led(1);
   flash_led(1);
@@ -562,7 +577,7 @@ void Closed(void)
 
 void granted()
 { // Tag registered
-  tM.disable();
+  rfidCheck = false;
   but_led(2);
   flash_led(1);
   GoodSound();
@@ -651,7 +666,6 @@ void dispRFID(void)
 void displayON()  // switch display on
 {
   displayIsON = true;
-  tM.enable();
   intervalRFID = 0;
   lcd.setBacklight(BACKLIGHTon);
   tDF.restartDelayed(TASK_SECOND * disLightOn);
