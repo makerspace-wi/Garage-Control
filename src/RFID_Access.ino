@@ -37,7 +37,7 @@
   last change: 05.08.2024 by Michael Muehl
   changed: expand RAM size by macro F(), using text in ROM for lcd
 */
-#define Version "1.4.7" // (Test = 1.4.6 ==> 1.4.8)
+#define Version "1.4.8" // (Test = 1.4.8 ==> 1.4.9)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -134,9 +134,9 @@ Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &r);   // 1000ms / dosta
 
 // VARIABLES
 // external watch dog
-byte wdTimeL = 1; // value * (Task tRFR(TASK_SECOND / 2)
-byte wdTimeH = 1; // value * (Task tRFR(TASK_SECOND / 2)
-byte wdCount = 0; // counter for watch dog
+byte wdTimeL = 10; // value * (Task tRFR(TASK_SECOND / 2)
+byte wdTimeH = 10; // value * (Task tRFR(TASK_SECOND / 2)
+byte wdCount = 0;  // counter for watch dog
 
 uint8_t success;                          // RFID
 uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
@@ -297,13 +297,6 @@ void retryPOR()
 
 void checkRFID()  // wait until rfid token is recognized
 { // 500ms Tick
-  // signal for watch dog timer -------
-  if (wdCount == wdTimeL) digitalWrite(PULS_WDT, HIGH);
-  if (wdCount == (wdTimeL + wdTimeH) && digitalRead(PULS_WDT))
-  {
-    digitalWrite(PULS_WDT, LOW);
-    wdCount = 0;
-  }
   // check RFID -----------------------
   if (!digitalRead(PN532_IRQ)) 
   {
@@ -323,7 +316,6 @@ void checkRFID()  // wait until rfid token is recognized
       displayON();
     }
   }
-  ++wdCount;
 }
 
 void CheckEvent()
@@ -440,6 +432,19 @@ void FlashCallback()
 
 void doorSTA()
 {
+  // signal for watch dog timer -------
+  if (wdCount == wdTimeL) 
+  {
+    // Serial.println(String(IDENT) + ";count;" + String(wdCount));
+    digitalWrite(PULS_WDT, HIGH);
+  }
+  if (wdCount == (wdTimeL + wdTimeH) && digitalRead(PULS_WDT))
+  {
+    // Serial.println(String(IDENT) + ";count;" + String(wdCount));
+    digitalWrite(PULS_WDT, LOW);
+    wdCount = 0;
+  }
+  // door status check
   bitWrite(sw_val, 0, digitalRead(SW_open));
   bitWrite(sw_val, 1, digitalRead(SW_close));
   if (sw_val != sw_last)
@@ -464,6 +469,7 @@ void doorSTA()
     Serial.println(String(IDENT) + ";stat;" + String(sw_val));
   }
   --staCount;
+  ++wdCount;
 }
 
 void MoveERROR()
