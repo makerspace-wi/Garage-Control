@@ -24,6 +24,7 @@
   'open'   - Garage OPEN
   'close'  - Garage CLOSE
   'resre'  - reset relais = all open
+  'minre'  - power reset mini over WDT
   'reqst'  - request status
   'nolog'  - not loged in at entry door!
   'noreg'  - RFID-Chip not registed
@@ -34,10 +35,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 05.08.2024 by Michael Muehl
-  changed: expand RAM size by macro F(), using text in ROM for lcd
+  last change: 24.09.2024 by Michael Muehl
+  changed: add command MINRE for reseting mini over WDT
 */
-#define Version "1.4.8" // (Test = 1.4.8 ==> 1.4.9)
+#define Version "1.4.9" // (Test = 1.4.9 ==> 1.5.0)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -744,6 +745,10 @@ void evalSerialData()
   {
     digitalWrite(REL_open, HIGH);
     digitalWrite(REL_close, HIGH);
+  }
+  else if (inStr.startsWith("MINRE") && inStr.length() ==5)
+  { // no Task for 1 sec WDT goes aktice
+    delay(1000);
   }
   else if (inStr.startsWith("SETMO") && inStr.length() <9)
   { // set time during door is moving [sec * checkFA]
