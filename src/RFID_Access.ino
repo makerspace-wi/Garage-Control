@@ -36,9 +36,9 @@
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
   last change: 10.10.2024 by Michael Muehl
-  changed: add priority and start RFID expicit after display off
+  changed: add very high priority for door status
 */
-#define Version "1.5.0" // (Test = 1.4.9 ==> 1.5.1)
+#define Version "1.5.1" // (Test = 1.4.9 ==> 1.5.2)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -101,7 +101,7 @@ byte I2CTransmissionResult = 0;
 #define repHour    3600uL // [3600uL] seconds per hour (unsigned long)
 
 // CREATE OBJECTS
-Scheduler r, hpr;
+Scheduler r, hpr, cpr;
 LCDLED_BreakOUT lcd = LCDLED_BreakOUT();
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
@@ -132,7 +132,7 @@ Task tBD(1, TASK_ONCE, &FlashCallback, &r);                      // Flash Delay
 Task tDF(1, TASK_ONCE, &DisplayOFF, &r);                         // display off
 
 Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &r);         // 250ms for Garage move display
-Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &hpr);   // 1000ms / dostaFActor
+Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &cpr);   // 1000ms / dostaFActor
 
 // VARIABLES
 // external watch dog
@@ -211,6 +211,8 @@ void setup()
   digitalWrite(REL_close, HIGH);
 
   r.setHighPriorityScheduler(&hpr);
+  hpr.setHighPriorityScheduler(&cpr);
+  cpr.startNow();
   hpr.startNow();
   r.startNow();
 
