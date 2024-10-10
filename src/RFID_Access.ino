@@ -35,10 +35,10 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 24.09.2024 by Michael Muehl
-  changed: add command MINRE for reseting mini over WDT
+  last change: 10.10.2024 by Michael Muehl
+  changed: add priority and start RFID expicit after display off
 */
-#define Version "1.4.9" // (Test = 1.4.9 ==> 1.5.0)
+#define Version "1.5.0" // (Test = 1.4.9 ==> 1.5.1)
 #define xBeeName "GADO"	// machine name for xBee
 #define checkFA     10  // [10] event CHECK for every (1 second / FActor)
 #define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
@@ -48,6 +48,7 @@
 // ---------------------
 #include <Arduino.h>
 
+#define _TASK_PRIORITY
 #include <TaskScheduler.h>
 
 #include <Wire.h>
@@ -100,7 +101,7 @@ byte I2CTransmissionResult = 0;
 #define repHour    3600uL // [3600uL] seconds per hour (unsigned long)
 
 // CREATE OBJECTS
-Scheduler r;
+Scheduler r, hpr;
 LCDLED_BreakOUT lcd = LCDLED_BreakOUT();
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
@@ -121,17 +122,17 @@ void doorSTA();          // Task for door STAtus
 void flash_led(int);
 
 // TASKS
-Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &r);	       // 500ms main task
-Task tR(TASK_SECOND / 2, 0, &repeatMES, &r);                   // 500ms * repMES repeat messages
-Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &r); // 1000ms / checkFActor
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback, &r);    // 5000ms blinking
+Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &r);	         // 500ms main task
+Task tR(TASK_SECOND / 2, 0, &repeatMES, &r);                     // 500ms * repMES repeat messages
+Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &hpr); // 1000ms / checkFActor
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback, &r);      // 5000ms blinking
 
-Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &r);                  // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
-Task tBD(1, TASK_ONCE, &FlashCallback, &r);                    // Flash Delay
-Task tDF(1, TASK_ONCE, &DisplayOFF, &r);                       // display off
+Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &r);                    // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
+Task tBD(1, TASK_ONCE, &FlashCallback, &r);                      // Flash Delay
+Task tDF(1, TASK_ONCE, &DisplayOFF, &r);                         // display off
 
-Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &r);       // 250ms for Garage move display
-Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &r);   // 1000ms / dostaFActor
+Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &r);         // 250ms for Garage move display
+Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &hpr);   // 1000ms / dostaFActor
 
 // VARIABLES
 // external watch dog
@@ -209,6 +210,8 @@ void setup()
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
 
+  r.setHighPriorityScheduler(&hpr);
+  hpr.startNow();
   r.startNow();
 
   // I2C _ Ports definition only for test if I2C is avilable
@@ -523,6 +526,7 @@ void DisplayOFF()
   flash_led(1);
   sw_last = 255;  // send status
   rfidCheck = true;
+  nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A); //  start RFID for next reading
 }
 // END OF TASKS ---------------------------------
 
