@@ -1,6 +1,5 @@
 /* DESCRIPTION
   ====================
-  uploaded on 20.09.2021 by Dieter
   Code for garage control over RFID
   reading IDENT from xBee, retrait sending ...POR until time responds
   open or close garage door
@@ -35,21 +34,23 @@
   'r3t...' - display text in row 3 "r3tabcde12345", max 20
   'r4t...' - display text in row 4 "r4tabcde12345", max 20
 
-  last change: 13.10.2024 by Michael Muehl
-  changed: reset priority
-*/
-#define Version "1.5.2" // (Test = 1.5.2 ==> 1.5.3)
+  last change: 14.03.2026 by Michael Muehl
+  changed: add panic reaction
+  */
+#define Version "1.6.1" // (Test = 1.6.1 ==> 1.6.2)
 #define xBeeName "GADO"	// machine name for xBee
-#define checkFA     10  // [10] event CHECK for every (1 second / FActor)
-#define dostaFA     20  // [20] DOor STAtus for every (1 second / FActor)
+#define checkFA     10  // [ 10] event CHECK for every (1 second / FActor)
+#define dostaFA     20  // [ 20] DOor STAtus for every (1 second / FActor)
 #define minMove    100  // [100] minimal time for moving door (xx.x sec * checkFA)
-#define disLightOn  15  // [15] display light on for seconds
+#define disLightOn  15  // [ 15] display light on for seconds
+#define timePanic   30  // [ 30] seconds until panic button is active
+#define riseBreak    2  // [  2] pulses until break is active after button pressed
+#define risePanic   22  // [ 22] pulses until panic is active after button pressed
 
-// ---------------------
+// --------------------------
 #include <Arduino.h>
 
 #include <TaskScheduler.h>
-
 #include <Wire.h>
 #include <LCDLED_BreakOUT.h>
 #include <utility/Adafruit_MCP23017.h>
@@ -57,8 +58,8 @@
 
 // PIN Assignments
 // RFID Control ---I2C-------
-// #define SDA      A4  // Relais Garage open
-// #define SCL      A5  // Relais Garage close
+// #define SDA      A4  // I2C
+// #define SCL      A5  // I2C
 #define PN532_IRQ    2  // RFID IRQ
 #define PN532_RESET  3  // RFID Reset [not used]
 
@@ -85,11 +86,11 @@ byte I2CTransmissionResult = 0;
 #define buzzerPin    2  // Buzzer Pin
 #define BUT_P1_LED   3  // not used
 // Switched High - Low - High - Low
-#define StopLEDrt    4  // StopLEDrt (LED + Stop-Taster)
-#define StopLEDgn    5  // StopLEDgn (LED - Stop-Taster)
+#define StopLEDrt    4  // StopLEDrt (LED + Stop-Button)
+#define StopLEDgn    5  // StopLEDgn (LED - Stop-Button)
 // switch to HIGH Value (def .h)
 // BUTTON_P1         6  // not used
-// BUTTON_P2         7  // StopSwitch
+// BUTTON_P2         7  // StopButton
 // BACKLIGHT for LCD-Display
 #define BACKLIGHToff 0x0
 #define BACKLIGHTon  0x1
@@ -104,36 +105,51 @@ Scheduler r;
 LCDLED_BreakOUT lcd = LCDLED_BreakOUT();
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
-// Callback methods prototypes
-void checkXbee();        // Task connect to xBee Server
-void BlinkCallback();    // Task to let LED blink - added by D. Haude 08.03.2017
-void CheckEvent();       // Task to event checker
-void repeatMES();        // Task to repeat messages
-
-void BuzzerOn();         // added by DieterH on 22.10.2017
-void FlashCallback();    // Task to let LED blink - added by D. Haude 08.03.2017
+// Callback methods Tasks --------
+void CheckXbee();        // Task connect to xBee Server
+void RepeatMES();        // Task to repeat messages
+void Indication();       // Task to indicate special events
+void CheckEvent();       // Task to check timer events
+void BuzzerOn();         // Task for Buzzer on
+void BuzzerOff();        // Task for Buzzer off
+void FlashDelay();       // Task to let LED blink
 void DisplayOFF();       // Task to switch display off after time
-
 void MoveERROR();        // Task for Error during movement
-void doorSTA();          // Task for door STAtus
+void DoorSTA();          // Task for door STAtus
 
-// Functions define for C++
-void flash_led(int);
+// Callback methods Functions ----
+void setup();
 
-// TASKS
-Task tM(TASK_SECOND / 2, TASK_FOREVER, &checkXbee, &r);	       // 500ms main task
-Task tR(TASK_SECOND / 2, 0, &repeatMES, &r);                   // 500ms * repMES repeat messages
-Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &r); // 1000ms / checkFActor
-Task tB(TASK_SECOND * 5, TASK_FOREVER, &BlinkCallback, &r);    // 5000ms blinking
+void retryPOR();
+void checkRFID();
 
-Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &r);                  // 100ms 6x =600ms buzzer added by DieterH on 22.10.2017
-Task tBD(1, TASK_ONCE, &FlashCallback, &r);                    // Flash Delay
-Task tDF(1, TASK_ONCE, &DisplayOFF, &r);                       // display off
+void opened();
+void closed();
+void granted();
+void buttLed(int var);
+void flashLed(int);
+void badSound();
+void goodSound();
+void dispRFID();
+void displayON();
+
+void evalSerialData();
+// -------------------------------
+
+// TASKS -------------------------
+Task tM(TASK_SECOND / 2, TASK_FOREVER, &CheckXbee, &r);	       // 500ms main task
+Task tR(TASK_SECOND / 2, 0, &RepeatMES, &r);                   // 500ms repeat messages
+Task tU(TASK_SECOND / checkFA, TASK_FOREVER, &CheckEvent, &r); // 1000ms / checkFActor check timer events
+Task tB(TASK_SECOND * 5, TASK_FOREVER, &Indication, &r);       // 5000ms Indication for special events
+
+Task tBU(TASK_SECOND / 10, 6, &BuzzerOn, &r);                  // 100ms 6x =600ms buzzer on for 6 times
+Task tFD(1, TASK_ONCE, &FlashDelay, &r);                       // Flash Delay leds
+Task tDF(1, TASK_ONCE, &DisplayOFF, &r);                       // display off after xx sec
 
 Task tMV(TASK_SECOND / 4, TASK_FOREVER, &MoveERROR, &r);       // 250ms for Garage move display
-Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &doorSTA, &r);   // 1000ms / dostaFActor
+Task tDS(TASK_SECOND / dostaFA, TASK_FOREVER, &DoorSTA, &r);   // 1000ms / dostaFActor
 
-// VARIABLES
+// VARIABLES ---------------------
 // external watch dog
 byte wdTimeL = dostaFA / 2; // [500ms] value * (TASK_SECOND / dostaFA)
 byte wdTimeH = dostaFA / 2; // [500ms] value * (TASK_SECOND / dostaFA)
@@ -143,13 +159,17 @@ uint8_t success;                          // RFID
 uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
 uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
 
-bool onError = false;
+bool errorMode = false;
+bool errorLast = false;
+bool breakMode = false;
+bool panicMode = false;
 bool rfidCheck = false;
 bool oneTime = false;
 bool toggle = false;
 unsigned long val;
-unsigned int timer = 0;
 unsigned long code;
+unsigned int timer = 0;
+unsigned int buttonTime = 0;   // time buttons are pressed
 int minutes = 0;
 byte atqa[2];
 byte atqaLen = sizeof(atqa);
@@ -177,7 +197,7 @@ unsigned long staCount = 0uL; // counter to send status ervery hour
 // Serial with xBee
 String inStr = "";      // a string to hold incoming data
 String IDENT = "";      // identifier for remote access control
-String SFMes = "";      // String send for repeatMES
+String SFMes = "";      // String send for RepeatMES
 byte co_ok = 0;         // count ok after +++ control AT sequenz
 byte getTime = porTime;
 
@@ -237,22 +257,22 @@ void setup()
     lcd.pinLEDs(buzzerPin, LOW);
     lcd.pinLEDs(BUT_P1_LED, LOW);
 
-    but_led(1);
-    flash_led(1);
+    buttLed(1);
+    flashLed(1);
     dispRFID();
-    tM.enable();         // xBee check
-    Serial.print("+++"); //Starting the request of IDENT
+    tM.enable();            // xBee check
+    Serial.print(F("+++")); //Starting the request of IDENT
   }
-  else 
+  else
   {
-    tB.enable();  // enable Task Error blinking
+    tB.enable();            // enable Task Error blinking
     tB.setInterval(TASK_SECOND);
   }
 }
 // Setup End -----------------------------------
 
 // TASK (Functions) ----------------------------
-void checkXbee()
+void CheckXbee()  // check if xBee name is read out
 {
   if (IDENT.startsWith(xBeeName) && co_ok == 2)
   {
@@ -306,7 +326,7 @@ void checkRFID()  // wait until rfid token is recognized
     if (success && rfidCheck == true)
     {
       lcd.clear();
-      flash_led(4);
+      flashLed(4);
       code = 0;
       for (byte i = 0; i < uidLength; i++)
       {
@@ -323,37 +343,67 @@ void CheckEvent()
 {
   uint8_t buttons = lcd.readButtons();
   if ((buttons & BUTTON_P2) ==2)
-  { // stop movement
-    digitalWrite(REL_open, HIGH);
-    digitalWrite(REL_close, HIGH);
-    onError = true;
-    lcd.setCursor(0, 2); lcd.print(F("Stop occurs!!!      "));
-    lcd.setCursor(0, 3); lcd.print(F("Door moved "));
-    if (movDoor == 1)
+  { // break movement
+    buttonTime++;
+    if (!breakMode && !panicMode && buttonTime > riseBreak)
     {
-      lcd.print(F("up???    "));
-      Serial.println(String(IDENT) + ";openbr");
+      breakMode = true;
+      digitalWrite(REL_open, HIGH);
+      digitalWrite(REL_close, HIGH);
+      if (movDoor == 1)
+      {
+        Serial.println(String(IDENT) + ";openbr");
+      }
+      else if  (movDoor == 2)
+      {
+        Serial.println(String(IDENT) + ";closebr");
+      }
+      sw_last = 255;  // send status
+      timer = 0;
     }
-    else if  (movDoor == 2)
+    else if (breakMode && errorLast && !panicMode && buttonTime > risePanic)
     {
-      lcd.print(F("down?    "));
-      Serial.println(String(IDENT) + ";closebr");
+      panicMode = true;
+      timer = (timePanic) * checkFA;
+      digitalWrite(REL_open, HIGH);
+      digitalWrite(REL_close, HIGH);
+      lcd.setCursor(0, 2); lcd.print(F("Panic mode in : "));
+      lcd.setCursor(0, 3); lcd.print(F("No door movement    "));
+      tMV.setInterval(TASK_SECOND / 8);
+      tMV.setCallback(MoveERROR);
     }
-    sw_last = 255;  // send status
+    else if (panicMode && breakMode && errorLast && buttonTime >= timePanic * checkFA) 
+    {
+      timer = MOVE;
+      panicMode = false; 
+      errorLast = false;
+      closed();
+      Serial.println(String(IDENT) + ";PANIC!");
+    }
+  }
+  else 
+  {
+    if (breakMode && errorLast && panicMode)
+    {
+      timer = 1;
+      panicMode = false;
+    }
+    if (breakMode && buttonTime >= timePanic * checkFA)  breakMode = false;
+    buttonTime = 0;
   }
 
   if (timer > 0)
   {
     --timer;
     if (timer == 0)
-    { // stop movement
+    { // stop movement after time is over
       digitalWrite(REL_open, HIGH);
       digitalWrite(REL_close, HIGH);
-      flash_led(1);
+      flashLed(1);
       tU.disable();
       tMV.disable();
-      but_led(1); // only red possible
-      sw_last = 255;  // send status
+      buttLed(1);             // only red possible
+      sw_last = 255;          // send status
     }
     if (timer % checkFA == 0)
     {
@@ -365,7 +415,7 @@ void CheckEvent()
   }
 
   if (timer ==  0)
-  {
+  { // check if movement is finished or error occurs
     if ((movDoor == 11) || (movDoor == 22))
     {
       lcd.setCursor(0, 2); lcd.print(F("Action finished     "));
@@ -380,7 +430,11 @@ void CheckEvent()
         lcd.print(F("closed    "));
         Serial.println(String(IDENT) + ";closed");
       }
-   }
+      errorMode = false;
+      errorLast = false;
+      breakMode = false;
+      panicMode = false;
+    }
     else
     {
       lcd.setCursor(0, 2); lcd.print(F("Error occurs? Time 0"));
@@ -395,15 +449,15 @@ void CheckEvent()
         lcd.print(F("closed??     "));
         Serial.println(String(IDENT) + ";close??");
       }
-      onError = true;
+      errorMode = true;
+      errorLast = true;
     }
     movDoor = 0;
   }
 
-  if (onError)
+  if (errorMode)
   {
-    onError = false;
-    but_led(1);
+    buttLed(1);
     tU.disable();
     tMV.setInterval(TASK_SECOND / 4);
     tMV.setCallback(MoveERROR);
@@ -412,26 +466,23 @@ void CheckEvent()
   }
 }
 
-// Task repeatMES: ------------------------
-void repeatMES()
-{
-  // --repeat messages from machines
+void RepeatMES()
+{	// --repeat messages from machines
   Serial.println(String(SFMes));
 }
 
-void BlinkCallback()
-{
-  // --Blink if BUS Error
+void Indication()
+{ // --indication if BUS Error
   digitalWrite(xBuError, !digitalRead(xBuError));
   digitalWrite(PULS_WDT, !digitalRead(PULS_WDT));
 }
 
-void FlashCallback()
+void FlashDelay()
 {
-  flash_led(1);
+  flashLed(1);
 }
 
-void doorSTA()
+void DoorSTA()
 {
   // signal for watch dog timer -------
   if (wdCount == wdTimeL) 
@@ -478,11 +529,11 @@ void MoveERROR()
     togMOVE = !togMOVE;
     if (togMOVE)
     { 
-      flash_led(4);
+      flashLed(4);
     }
     else
     {
-      flash_led(1);
+      flashLed(1);
     }
 }
 
@@ -490,11 +541,11 @@ void MoveOPEN()
 {
   if (togLED) {
     tMV.setInterval(TASK_SECOND / 4);
-    flash_led(3);
+    flashLed(3);
     togLED = !togLED;
   } else {
     tMV.setInterval(TASK_SECOND / 2);
-    flash_led(2);
+    flashLed(2);
     togLED = !togLED;
   }
 }
@@ -503,11 +554,11 @@ void MoveCLOSE()
 {
   if (togLED) {
     tMV.setInterval(TASK_SECOND / 4);
-    flash_led(2);
+    flashLed(2);
     togLED = !togLED;
   } else {
     tMV.setInterval(TASK_SECOND / 2);
-    flash_led(3);
+    flashLed(3);
     togLED = !togLED;
   }
 }
@@ -519,10 +570,22 @@ void DisplayOFF()
   tMV.disable();
   lcd.setBacklight(BACKLIGHToff);
   lcd.clear();
-  but_led(1);
-  flash_led(1);
+  buttLed(1);
+  flashLed(1);
   sw_last = 255;  // send status
   rfidCheck = true;
+}
+
+void BuzzerOn()   // switch buzzer on
+{
+  lcd.pinLEDs(buzzerPin, HIGH);
+  tBU.setCallback(&BuzzerOff);
+}
+
+void BuzzerOff()  // switch buzzer off
+{
+  lcd.pinLEDs(buzzerPin, LOW);
+  tBU.setCallback(&BuzzerOn);
 }
 // END OF TASKS ---------------------------------
 
@@ -548,13 +611,13 @@ void noact()
   digitalWrite(REL_open, HIGH);
   digitalWrite(REL_close, HIGH);
   rfidCheck = true;
-  BadSound();
-  but_led(1);
-  flash_led(1);
+  badSound();
+  buttLed(1);
+  flashLed(1);
   tDF.restartDelayed(TASK_SECOND * disLightOn);
 }
 
-void Opened(void)
+void opened(void)
 { // Open garage
   movDoor = 1;
   digitalWrite(REL_open, LOW);
@@ -568,7 +631,7 @@ void Opened(void)
   granted();
 }
 
-void Closed(void)
+void closed(void)
 { // Close garage
   movDoor = 2;
   digitalWrite(REL_close, LOW);
@@ -585,16 +648,17 @@ void Closed(void)
 void granted()
 { // Tag registered
   rfidCheck = false;
-  but_led(2);
-  flash_led(1);
-  GoodSound();
+  errorMode = false;
+  buttLed(2);
+  flashLed(1);
+  goodSound();
   timer = MOVE;
   tMV.setInterval(TASK_SECOND / 4);
   tMV.enable();
   tU.enable();
 }
 
-void but_led(int var)
+void buttLed(int var)
 { // button led switching
   switch (var)
   {
@@ -613,7 +677,7 @@ void but_led(int var)
   }
 }
 
-void flash_led(int var)
+void flashLed(int var)
 { // flash leds switching
   switch (var)
   {
@@ -636,19 +700,7 @@ void flash_led(int var)
   }
 }
 
-void BuzzerOff()  // switch buzzer off
-{
-  lcd.pinLEDs(buzzerPin, LOW);
-  tBU.setCallback(&BuzzerOn);
-}
-
-void BuzzerOn()   // switch buzzer on
-{
-  lcd.pinLEDs(buzzerPin, HIGH);
-  tBU.setCallback(&BuzzerOff);
-}
-
-void BadSound(void) // generate bad sound
+void badSound(void) // generate bad sound
 {   // added by DieterH on 22.10.2017
   tBU.setInterval(100);
   tBU.setIterations(6); // I think it must be Beeps * 2?
@@ -656,22 +708,21 @@ void BadSound(void) // generate bad sound
   tBU.enable();
 }
 
-void GoodSound(void) // generate good sound
+void goodSound(void) // generate good sound
 {
   lcd.pinLEDs(buzzerPin, HIGH);
-  tBD.setCallback(&BuzzerOff);  // changed by DieterH on 18.10.2017
-  tBD.restartDelayed(200);      // changed by DieterH on 18.10.2017
+  tFD.setCallback(&BuzzerOff);
+  tFD.restartDelayed(200);
 }
 
-//  RFID ------------------------------
 void dispRFID(void)
-{
+{	// display RFID start
   lcd.print("Sys  V" + String(Version).substring(0,3) + " starts at:");
   lcd.setCursor(0, 1); lcd.print("Wait Sync xBee:");
 }
 
-void displayON()  // switch display on
-{
+void displayON()  
+{	// switch display on
   displayIsON = true;
   intervalRFID = 0;
   lcd.setBacklight(BACKLIGHTon);
@@ -679,7 +730,7 @@ void displayON()  // switch display on
 }
 // End Funktions --------------------------------
 
-// Funktions Serial Input ------- ---------------
+// Funktions Serial Input (Event) ---------------
 void evalSerialData()
 {
   inStr.toUpperCase();
@@ -687,7 +738,7 @@ void evalSerialData()
   {
     if (co_ok == 0)
     {
-      Serial.println("ATNI");
+      Serial.println(F("ATNI"));
       ++co_ok;
     }
     else
@@ -700,7 +751,7 @@ void evalSerialData()
     if (inStr.startsWith(xBeeName))
     {
       IDENT = inStr;
-      Serial.println("ATCN");
+      Serial.println(F("ATCN"));
     }
     else
     {
@@ -733,13 +784,13 @@ void evalSerialData()
   }
   else if (inStr.startsWith("OPEN") && inStr.length() ==4)
   {
-    but_led(3);
-    Opened();
+    buttLed(3);
+    opened();
   }
   else if (inStr.startsWith("CLOSE") && inStr.length() ==5)
   {
-    but_led(3);
-    Closed();
+    buttLed(3);
+    closed();
   }
   else if (inStr.startsWith("RESRE") && inStr.length() ==5)
   {
