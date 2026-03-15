@@ -33,8 +33,12 @@
 
 ### NOT STOP Funktion
 
-- Mit der <b>NOT STOP</b> Taste am Lesegerät kann das Auf- oder Zufahren sofort gestoppt werden, falls sich versehentlich was im Führungsweg des Rolltors befindet
-- bei Betätigung der Taste bleibt das Rolltor sofort stehen und fährt erst nach nochmaligem präsentieren des RFID-Chips erst mal in die "Offen"-Position
+- Mit der Taste <b>(NOT-STOP)</b> am Lesegerät kann das Auf- oder Zufahren sofort gestoppt werden, falls sich versehentlich etwas im Führungsweg des Rolltors befindet
+- bei Betätigung der Taste bleibt das Rolltor sofort stehen und fährt erst nach nochmaligem präsentieren des RFID-Chips erst mal in die <b>"Offen"-Position</b> 
+- die Richtung des Rolltors kann durch Betätigung der Taste während des Laufs geändert werden: <b>ACHTUNG Weg frei?</b>
+  - Dafür muss die Taste für 30sec <b>dauerhaft</b> gedrückt werden 
+  - Nach ca. 2sec wird das Öffnen bendet und im Display wir der <b>Panic-Mode</b> angezeigt.
+  - Nach Ablauf der Zeit fährt das Rolltor nach unten, dies kann wieder mit der Taste abgebrochen werden.
 
 ### Was wird geloggt?
 - jede Öffnung und folgende Schließung wird in der Datenbank geloggt
